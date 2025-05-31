@@ -1,0 +1,9 @@
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[db]
+username = "test"
+password = "test"
+host = "localhost"
+port = 5432

@@ -1,0 +1,23 @@
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U ${DB_USER}"]
+      interval: 10s 
+      timeout: 5s 
+      retries: 5
+
+  server:
+    build:
+      context: ./ 
+      dockerfile: Dockerfile 
+    ports:
+      - 8080:8080
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: on-failure
