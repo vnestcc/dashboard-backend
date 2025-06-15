@@ -1,0 +1,823 @@
+basePath: /api
+definitions:
+  handlers.authRequest:
+    properties:
+      email:
+        example: example@vnest.org
+        type: string
+      password:
+        example: superstrongpassword
+        type: string
+    type: object
+  handlers.createCompanyRequest:
+    properties:
+      contact_email:
+        example: john@acme.com
+        type: string
+      contact_name:
+        example: John Doe
+        type: string
+      name:
+        example: Acme Inc
+        type: string
+    required:
+    - contact_email
+    - contact_name
+    - name
+    type: object
+  handlers.editUserRequest:
+    properties:
+      name:
+        example: John Doe
+        type: string
+      position:
+        example: CTO
+        type: string
+    required:
+    - name
+    - position
+    type: object
+  handlers.failedResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handlers.joinCompanyRequest:
+    properties:
+      secret_code:
+        example: random hex
+        type: string
+    required:
+    - secret_code
+    type: object
+  handlers.pongResponse:
+    properties:
+      msg:
+        example: pong
+        type: string
+    type: object
+  handlers.quarterResponse:
+    properties:
+      date:
+        example: "2025-04-01T00:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      quarter:
+        example: Q1
+        type: string
+      year:
+        example: 2025
+        type: integer
+    type: object
+  handlers.successResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        type: string
+    type: object
+  handlers.userMeResponse:
+    properties:
+      email:
+        example: alice@example.com
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Alice
+        type: string
+      position:
+        example: CEO
+        type: string
+    type: object
+  handlers.userauthRequest:
+    properties:
+      email:
+        example: example@vnest.org
+        type: string
+      password:
+        example: superstrongpassword
+        type: string
+      position:
+        example: founder
+        type: string
+    type: object
+  handlers.vcModel:
+    properties:
+      approved:
+        example: false
+        type: boolean
+      email:
+        example: example@vnest.org
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: someone
+        type: string
+    type: object
+info:
+  contact: {}
+  description: This endpoint is for dev purposes
+  title: VNEST Dashboard Swagger docs
+  version: "1.0"
+paths:
+  /auth/user/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user by email and password. Uses a cache lookup
+        before querying the database. Returns a JWT token on success.
+      parameters:
+      - description: User Login Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.successResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: User Login
+      tags:
+      - auth
+  /auth/user/signup:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new user with an email and password. The user is assigned
+        a default role of "user".
+      parameters:
+      - description: User Signup Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.userauthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.successResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: User Signup
+      tags:
+      - auth
+  /auth/vc/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user by email and password. Uses a cache lookup
+        before querying the database. Returns a JWT token on success.
+      parameters:
+      - description: VC Login Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.successResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: VC Login
+      tags:
+      - auth
+  /auth/vc/signup:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new VC user with an email and password. The user is
+        assigned a default role of "vc".
+      parameters:
+      - description: VC Signup Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.successResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: VC Signup
+      tags:
+      - auth
+  /company/{id}:
+    get:
+      description: Returns the current user's company information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get company details
+      tags:
+      - company
+  /company/create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new company for the user
+      parameters:
+      - description: Company details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a company
+      tags:
+      - company
+  /company/delete:
+    delete:
+      description: Deletes the user's company
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a company
+      tags:
+      - company
+  /company/edit:
+    put:
+      consumes:
+      - application/json
+      description: Updates the existing company data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Edit company information
+      tags:
+      - company
+  /company/join/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Join company for the user
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Secret Code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.joinCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Join a company
+      tags:
+      - company
+  /company/list:
+    get:
+      description: Retrieves a list of all companies available in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all companies
+      tags:
+      - company
+  /company/me:
+    get:
+      description: Retrieves the company associated with the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user's company
+      tags:
+      - company
+  /company/quarter/list/{id}:
+    get:
+      description: Lists all quarters for the specified company
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.quarterResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List quarters by company
+      tags:
+      - company
+  /manage/company/delete/{id}:
+    delete:
+      description: Deletes a company by its ID (admin only)
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin delete company
+      tags:
+      - admin
+  /manage/vc/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the VC from the database
+      parameters:
+      - description: VC ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a VC
+      tags:
+      - admin
+  /manage/vc/{id}/approve:
+    put:
+      consumes:
+      - application/json
+      description: Sets the VC's approved field to true
+      parameters:
+      - description: VC ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve a VC
+      tags:
+      - admin
+  /manage/vc/{id}/remove:
+    put:
+      consumes:
+      - application/json
+      description: Sets the VC's approved field to false
+      parameters:
+      - description: VC ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      security:
+      - BearerAuth: []
+      summary: Unapprove a VC
+      tags:
+      - admin
+  /manage/vc/list:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a list of users with the VC role
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.vcModel'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of VCs
+      tags:
+      - admin
+  /ping:
+    get:
+      description: Responds with "pong" to indicate the server is alive.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.pongResponse'
+      summary: Health Check
+      tags:
+      - healthcheck
+  /user/delete:
+    delete:
+      description: Deletes the current authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user account
+      tags:
+      - user
+  /user/edit:
+    put:
+      consumes:
+      - application/json
+      description: Allows a user to edit only their name and position
+      parameters:
+      - description: Edit user name and position
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.editUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Edit user profile
+      tags:
+      - user
+  /user/me:
+    get:
+      description: Returns details of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.userMeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user info
+      tags:
+      - user
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" and your JWT token for authentication and authorization
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
