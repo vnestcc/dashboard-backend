@@ -475,7 +475,7 @@ paths:
       summary: Get current user's company
       tags:
       - company
-  /company/quarter/list/{id}:
+  /company/quarters/{id}:
     get:
       description: Lists all quarters for the specified company
       parameters:

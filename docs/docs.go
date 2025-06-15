@@ -529,7 +529,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/company/quarter/list/{id}": {
+        "/company/quarters/{id}": {
             "get": {
                 "description": "Lists all quarters for the specified company",
                 "produces": [
