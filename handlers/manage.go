@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils/values"
 )
 
 type vcModel struct {
@@ -26,6 +27,7 @@ type vcModel struct {
 // @Failure      500  {object}  failedResponse
 // @Router       /manage/vc/list [get]
 func GetVCList(ctx *gin.Context) {
+	var db = values.GetDB()
 	var vc []models.User
 	role := "vc"
 	if err := db.Where("role = ?", role).Find(&vc).Error; err != nil {
@@ -49,6 +51,7 @@ func GetVCList(ctx *gin.Context) {
 // @Failure      500  {object}  failedResponse
 // @Router       /manage/vc/{id}/approve [put]
 func ApproveVC(ctx *gin.Context) {
+	var db = values.GetDB()
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
@@ -81,6 +84,7 @@ func ApproveVC(ctx *gin.Context) {
 // @Failure      500  {object}  failedResponse
 // @Router       /manage/vc/{id}/remove [put]
 func RemoveVC(ctx *gin.Context) {
+	var db = values.GetDB()
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
@@ -115,6 +119,7 @@ func RemoveVC(ctx *gin.Context) {
 // @Failure      500  {object}  failedResponse
 // @Router       /manage/vc/{id} [delete]
 func DeleteVC(ctx *gin.Context) {
+	var db = values.GetDB()
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {

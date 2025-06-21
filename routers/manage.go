@@ -9,7 +9,7 @@ import (
 func loadManage(r *gin.RouterGroup) {
 	manageRouter := r.Group("/manage")
 	//manageRouter.GET("/company/list", append(middleware.ModeratorMiddleware, handlers.GetCompaniesList)...)   // list all companies
-	//manageRouter.GET("/company/:id", append(middleware.ModeratorMiddleware, handlers.GetCompanyByIDAdmin)...) // get details of a company by id (for admin)
+	manageRouter.GET("/company/:id", append(middleware.ModeratorMiddleware, handlers.GetCompanyByID)...)
 	//manageRouter.POST("/company/set", append(middleware.ModeratorMiddleware, handlers.SetCompanyParams)...)   // set fields visible or editable
 	manageRouter.DELETE("/company/delete/:id", append(middleware.ModeratorMiddleware, handlers.DeleteCompanyByID)...)
 	manageRouter.PUT("/company/edit/:id", append(middleware.ModeratorMiddleware, handlers.EditCompanyByID)...)

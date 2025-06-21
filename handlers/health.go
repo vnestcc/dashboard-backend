@@ -2,11 +2,7 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/vnestcc/dashboard/utils/values"
 )
-
-var db = values.GetDB()
-var cfg = values.GetConfig()
 
 type pongResponse struct {
 	Msg string `json:"msg" example:"pong"`

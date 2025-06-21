@@ -9,22 +9,22 @@ import (
 type Quarter struct {
 	gorm.Model
 	ID        uint `gorm:"primaryKey;autoIncrement"`
-	CompanyID uint `gorm:"not null"`
+	CompanyID uint `gorm:"column:company_id;not null"`
 	Date      time.Time
 	Quarter   string
 	Year      uint
 
-	Company                 Company
-	FinancialHealths        []FinancialHealth       `gorm:"foreignKey:QuarterID,references:ID"`
-	MarketTractions         []MarketTraction        `gorm:"foreignKey:QuarterID,references:ID"`
-	UnitEconomics           []UnitEconomics         `gorm:"foreignKey:QuarterID,references:ID"`
-	ProductDevelopments     []ProductDevelopment    `gorm:"foreignKey:QuarterID,references:ID"`
-	TeamPerformances        []TeamPerformance       `gorm:"foreignKey:QuarterID,references:ID"`
-	FundraisingStatuses     []FundraisingStatus     `gorm:"foreignKey:QuarterID,references:ID"`
-	CompetitiveLandscapes   []CompetitiveLandscape  `gorm:"foreignKey:QuarterID,references:ID"`
-	OperationalEfficiencies []OperationalEfficiency `gorm:"foreignKey:QuarterID,references:ID"`
-	RiskManagements         []RiskManagement        `gorm:"foreignKey:QuarterID,references:ID"`
-	AdditionalInfos         []AdditionalInfo        `gorm:"foreignKey:QuarterID,references:ID"`
-	SelfAssessments         []SelfAssessment        `gorm:"foreignKey:QuarterID,references:ID"`
-	Attachments             []Attachment            `gorm:"foreignKey:QuarterID,references:ID"`
+	Company                 Company                 `gorm:"foreignKey:CompanyID"`
+	FinancialHealths        []FinancialHealth       `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	MarketTractions         []MarketTraction        `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	UnitEconomics           []UnitEconomics         `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	ProductDevelopments     []ProductDevelopment    `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	TeamPerformances        []TeamPerformance       `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	FundraisingStatuses     []FundraisingStatus     `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	CompetitiveLandscapes   []CompetitiveLandscape  `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	OperationalEfficiencies []OperationalEfficiency `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	RiskManagements         []RiskManagement        `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	AdditionalInfos         []AdditionalInfo        `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	SelfAssessments         []SelfAssessment        `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
+	Attachments             []Attachment            `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
 }

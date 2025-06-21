@@ -259,12 +259,61 @@ paths:
       - auth
   /company/{id}:
     get:
-      description: Returns the current user's company information
+      description: Returns the current user's company information, including selectable
+        related data sets
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Which related data to include
+        enum:
+        - info
+        - finance
+        - market
+        - uniteconomics
+        - teamperf
+        - fund
+        - competitive
+        - operation
+        - risk
+        - additional
+        - self
+        - attachements
+        in: query
+        name: data
+        type: string
+      - description: Quarter (e.g. Q1, Q2, Q3, Q4)
+        in: query
+        name: quarter
+        type: string
+      - description: Year
+        in: query
+        name: year
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string

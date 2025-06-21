@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils/values"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +37,7 @@ type Claims struct {
 // @Success      200  {object}  map[string]string
 // @Router       /company/me [get]
 func UserCompany(ctx *gin.Context) {
+	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -46,7 +49,7 @@ func UserCompany(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := db.Preload("StartUp").First(&user, claims.Id).Error; err != nil {
+	if err := db.Preload("StartUp").First(&user, claims.ID).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
@@ -83,6 +86,7 @@ type quarterResponse struct {
 // @Failure      500  {object}  map[string]string
 // @Router       /company/quarters/{id} [get]
 func ListQuater(ctx *gin.Context) {
+	var db = values.GetDB()
 	idStr := ctx.Param("id")
 	companyID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -119,6 +123,7 @@ func ListQuater(ctx *gin.Context) {
 // @Success      200  {object}  map[string]string
 // @Router       /company/list [get]
 func ListCompany(ctx *gin.Context) {
+	var db = values.GetDB()
 	var companies []models.Company
 	result := make(map[uint]string)
 	if err := db.Find(&companies).Error; err != nil {
@@ -132,19 +137,29 @@ func ListCompany(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
+var QuarterCache = cacher.NewCacher[string, models.Quarter](&cacher.NewCacherOpts{
+	TimeToLive:    3 * time.Minute,
+	CleanInterval: 1 * time.Hour,
+	Revaluate:     true,
+})
+
 // GetCompanyByID godoc
 // @Summary      Get company details
-// @Description  Returns the current user's company information
+// @Description  Returns the current user's company information, including selectable related data sets
 // @Tags         company
 // @Produce      json
-// @Success      200  {object}  map[string]string
+// @Param        id       path   int     true  "Company ID"
+// @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
+// @Param        quarter  query  string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
+// @Param        year     query  int     false "Year"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
 // @Router       /company/{id} [get]
-// for admin .. show everything ..
-// for user .. show based on isVisible
-// for vc .. based on isVisible
-// TODO: work
+// OPTIMIZE: there's too much object creations. Need fixing by hand written sql queries
 func GetCompanyByID(ctx *gin.Context) {
-	// Extract and parse company ID
+	var db = values.GetDB()
 	idStr := ctx.Param("id")
 	idUint, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -152,52 +167,254 @@ func GetCompanyByID(ctx *gin.Context) {
 		return
 	}
 	companyID := uint(idUint)
-
-	// Query parameters
-	data := ctx.Query("data")
-	quarter := ctx.Query("quarter")
-	year := ctx.Query("year")
-
-	// Whitelist for `data` query param
-	allowedData := map[string]bool{
-		"info": true, "finance": true, "market": true, "uniteconomics": true,
-		"teamperf": true, "fund": true, "competitive": true, "operation": true,
-		"risk": true, "additional": true, "self": true, "attachements": true,
-	}
-
-	if data != "" && !allowedData[data] {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
-		return
-	}
-
-	// Try getting from cache
-	if cachedCompany, found := StartupCache.Get(companyID); found {
-		ctx.JSON(http.StatusOK, gin.H{
-			"company": cachedCompany,
-			"data":    data,
-			"quarter": quarter,
-			"year":    year,
-			"cached":  true,
-		})
-		return
-	}
-
-	// Not found in cache, fetch from DB
 	var company models.Company
-	if err := db.First(&company, companyID).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Company not found"})
+	if err := db.Where("id = ?", companyID).Find(&company).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not find company"})
 		return
 	}
-
-	// Cache and return
-	StartupCache.Set(companyID, company)
-	ctx.JSON(http.StatusOK, gin.H{
-		"company": company,
-		"data":    data,
-		"quarter": quarter,
-		"year":    year,
-		"cached":  false,
-	})
+	dataVals := ctx.Request.URL.Query()["data"]
+	if len(dataVals) > 1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only one 'data' query parameter allowed"})
+		return
+	}
+	data := ""
+	if len(dataVals) == 1 {
+		data = dataVals[0]
+	}
+	quarter := ctx.Query("quarter")
+	yearStr := ctx.Query("year")
+	allowedData := map[string]string{
+		"info":          "",
+		"finance":       "FinancialHealths",
+		"market":        "MarketTractions",
+		"uniteconomics": "UnitEconomics",
+		"teamperf":      "TeamPerformances",
+		"fund":          "FundraisingStatuses",
+		"competitive":   "CompetitiveLandscapes",
+		"operation":     "OperationalEfficiencies",
+		"risk":          "RiskManagements",
+		"additional":    "AdditionalInfos",
+		"self":          "SelfAssessments",
+		"attachements":  "Attachments",
+	}
+	if data != "" {
+		if _, ok := allowedData[data]; !ok {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
+			return
+		}
+	}
+	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
+		return
+	}
+	year := uint(yearUint)
+	cacheKey := fmt.Sprintf("%d_%s_%d", companyID, quarter, year)
+	var quarterObj models.Quarter
+	cached, found := QuarterCache.Get(cacheKey)
+	if found {
+		quarterObj = cached
+	} else {
+		err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
+			First(&quarterObj).Error
+		if err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
+			return
+		}
+		QuarterCache.Set(cacheKey, quarterObj)
+	}
+	claimsVal, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims, ok := claimsVal.(Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
+		return
+	}
+	var user models.User
+	if err := db.First(&user, claims.ID).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+	full_access := (claims.Role == "admin") || (company.ID == *user.StartupID)
+	switch data {
+	case "", "info":
+		ctx.JSON(http.StatusOK, gin.H{
+			"company_id":            company.ID,
+			"company_name":          company.Name,
+			"company_contact_name":  company.ContactName,
+			"company_contact_email": company.ContactEmail,
+		})
+	case "finance":
+		var financialHealths []models.FinancialHealth
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&financialHealths).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FinancialHealths"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range financialHealths {
+			filtered = append(filtered, financialHealths[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":        quarterObj.ID,
+			"financial_healths": filtered,
+		})
+	case "market":
+		var marketTractions []models.MarketTraction
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&marketTractions).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load MarketTractions"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range marketTractions {
+			filtered = append(filtered, marketTractions[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":       quarterObj.ID,
+			"market_tractions": filtered,
+		})
+	case "uniteconomics":
+		var unitEconomics []models.UnitEconomics
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&unitEconomics).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load UnitEconomics"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range unitEconomics {
+			filtered = append(filtered, unitEconomics[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":     quarterObj.ID,
+			"unit_economics": filtered,
+		})
+	case "teamperf":
+		var teamPerformances []models.TeamPerformance
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&teamPerformances).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load TeamPerformances"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range teamPerformances {
+			filtered = append(filtered, teamPerformances[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":        quarterObj.ID,
+			"team_performances": filtered,
+		})
+	case "fund":
+		var fundraisingStatuses []models.FundraisingStatus
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&fundraisingStatuses).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FundraisingStatuses"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range fundraisingStatuses {
+			filtered = append(filtered, fundraisingStatuses[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":           quarterObj.ID,
+			"fundraising_statuses": filtered,
+		})
+	case "competitive":
+		var competitiveLandscapes []models.CompetitiveLandscape
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&competitiveLandscapes).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load CompetitiveLandscapes"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range competitiveLandscapes {
+			filtered = append(filtered, competitiveLandscapes[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":             quarterObj.ID,
+			"competitive_landscapes": filtered,
+		})
+	case "operation":
+		var operationalEfficiencies []models.OperationalEfficiency
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&operationalEfficiencies).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load OperationalEfficiencies"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range operationalEfficiencies {
+			filtered = append(filtered, operationalEfficiencies[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":               quarterObj.ID,
+			"operational_efficiencies": filtered,
+		})
+	case "risk":
+		var riskManagements []models.RiskManagement
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&riskManagements).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load RiskManagements"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range riskManagements {
+			filtered = append(filtered, riskManagements[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":      quarterObj.ID,
+			"risk_management": filtered,
+		})
+	case "additional":
+		var additionalInfos []models.AdditionalInfo
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&additionalInfos).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load AdditionalInfos"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range additionalInfos {
+			filtered = append(filtered, additionalInfos[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":      quarterObj.ID,
+			"additional_info": filtered,
+		})
+	case "self":
+		var selfAssessments []models.SelfAssessment
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&selfAssessments).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load SelfAssessments"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range selfAssessments {
+			filtered = append(filtered, selfAssessments[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":      quarterObj.ID,
+			"self_assessment": filtered,
+		})
+	case "attachements":
+		var attachments []models.Attachment
+		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&attachments).Error
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load Attachments"})
+			return
+		}
+		var filtered []map[string]any
+		for i := range attachments {
+			filtered = append(filtered, attachments[i].VisibilityFilter(full_access))
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"quarter_id":  quarterObj.ID,
+			"attachments": filtered,
+		})
+	default:
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
+	}
 }
 
 type createCompanyRequest struct {
@@ -222,6 +439,7 @@ type createCompanyRequest struct {
 // @Failure      500  {object}  map[string]string
 // @Router       /company/create [post]
 func CreateCompany(ctx *gin.Context) {
+	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -283,16 +501,617 @@ func CreateCompany(ctx *gin.Context) {
 // @Produce      json
 // @Success      200  {object}  map[string]string
 // @Router       /company/edit [put]
-// for user .. based on isEditbale
-// for admin .. everything
-// TODO: work
 func EditCompany(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"message": "company edited"})
+	var db = values.GetDB()
+	claimsVal, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims, ok := claimsVal.(Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
+		return
+	}
+	var user models.User
+	if err := db.Preload("StartUp").First(&user, claims.ID).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+	companyID := user.StartupID
+
+	var company models.Company
+	if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
+		return
+	}
+
+	dataVals := ctx.Request.URL.Query()["data"]
+	if len(dataVals) > 1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only one 'data' query parameter allowed"})
+		return
+	}
+	data := ""
+	if len(dataVals) == 1 {
+		data = dataVals[0]
+	}
+	quarter := ctx.Query("quarter")
+	yearStr := ctx.Query("year")
+	allowedData := map[string]string{
+		"info":          "",
+		"finance":       "FinancialHealths",
+		"market":        "MarketTractions",
+		"uniteconomics": "UnitEconomics",
+		"teamperf":      "TeamPerformances",
+		"fund":          "FundraisingStatuses",
+		"competitive":   "CompetitiveLandscapes",
+		"operation":     "OperationalEfficiencies",
+		"risk":          "RiskManagements",
+		"additional":    "AdditionalInfos",
+		"self":          "SelfAssessments",
+		"attachements":  "Attachments",
+	}
+	if data != "" {
+		if _, ok := allowedData[data]; !ok {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
+			return
+		}
+	}
+	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
+		return
+	}
+	year := uint(yearUint)
+	if data == "" || data == "info" {
+		var req struct {
+			Name         *string `json:"name"`
+			ContactName  *string `json:"contact_name"`
+			ContactEmail *string `json:"contact_email"`
+		}
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		if req.Name != nil {
+			company.Name = *req.Name
+		}
+		if req.ContactName != nil {
+			company.ContactName = *req.ContactName
+		}
+		if req.ContactEmail != nil {
+			company.ContactEmail = *req.ContactEmail
+		}
+		if err := db.Save(&company).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update company"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Company updated successfully", "company": company})
+		return
+	}
+	var quarterObj models.Quarter
+	if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
+		First(&quarterObj).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
+		return
+	}
+	preloadField := allowedData[data]
+	if preloadField == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No editable data specified"})
+		return
+	}
+	switch data {
+	case "finance":
+		var req []models.FinancialHealth
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.FinancialHealth{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "FinancialHealths versioned and inserted"})
+	case "market":
+		var req []models.MarketTraction
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.MarketTraction{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "MarketTractions versioned and inserted"})
+	case "uniteconomics":
+		var req []models.UnitEconomics
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.UnitEconomics{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "UnitEconomics versioned and inserted"})
+	case "teamperf":
+		var req []models.TeamPerformance
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.TeamPerformance{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "TeamPerformances versioned and inserted"})
+	case "fund":
+		var req []models.FundraisingStatus
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.FundraisingStatus{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "FundraisingStatuses versioned and inserted"})
+	case "competitive":
+		var req []models.CompetitiveLandscape
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.CompetitiveLandscape{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "CompetitiveLandscapes versioned and inserted"})
+	case "operation":
+		var req []models.OperationalEfficiency
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.OperationalEfficiency{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "OperationalEfficiencies versioned and inserted"})
+	case "risk":
+		var req []models.RiskManagement
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.RiskManagement{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "RiskManagements versioned and inserted"})
+	case "additional":
+		var req []models.AdditionalInfo
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.AdditionalInfo{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "AdditionalInfos versioned and inserted"})
+	case "self":
+		var req []models.SelfAssessment
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.SelfAssessment{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "SelfAssessments versioned and inserted"})
+	case "attachements":
+		var req []models.Attachment
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			if err := newObj.EditableFilter(); err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+				return
+			}
+			var maxVersion int
+			db.Model(&models.Attachment{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Attachments versioned and inserted"})
+	default:
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
+	}
 }
 
-// TODO: work /manage/company/edit/id
+// EditCompanyByID godoc
+// @Summary      Edit company details (Admin, versioned insert)
+// @Description  Allows admin to insert new versioned data for company or related quarter data
+// @Security 		 BearerAuth
+// @Tags         company
+// @Produce      json
+// @Param        id    path      int     true  "Company ID"
+// @Param        data  query     string  false "Which related data to edit. One of: info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements"
+// @Param        quarter query   string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
+// @Param        year  query     int     false "Year"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /manage/company/edit/{id} [put]
+// OPTIMIZE: whatever is written here is not meant for production. I pray for the server :pray:
 func EditCompanyByID(ctx *gin.Context) {
+	var db = values.GetDB()
+	idStr := ctx.Param("id")
+	idUint, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
+		return
+	}
+	companyID := uint(idUint)
 
+	var company models.Company
+	if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
+		return
+	}
+
+	dataVals := ctx.Request.URL.Query()["data"]
+	if len(dataVals) > 1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only one 'data' query parameter allowed"})
+		return
+	}
+	data := ""
+	if len(dataVals) == 1 {
+		data = dataVals[0]
+	}
+	quarter := ctx.Query("quarter")
+	yearStr := ctx.Query("year")
+	allowedData := map[string]string{
+		"info":          "",
+		"finance":       "FinancialHealths",
+		"market":        "MarketTractions",
+		"uniteconomics": "UnitEconomics",
+		"teamperf":      "TeamPerformances",
+		"fund":          "FundraisingStatuses",
+		"competitive":   "CompetitiveLandscapes",
+		"operation":     "OperationalEfficiencies",
+		"risk":          "RiskManagements",
+		"additional":    "AdditionalInfos",
+		"self":          "SelfAssessments",
+		"attachements":  "Attachments",
+	}
+	if data != "" {
+		if _, ok := allowedData[data]; !ok {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
+			return
+		}
+	}
+	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
+		return
+	}
+	year := uint(yearUint)
+	if data == "" || data == "info" {
+		var req struct {
+			Name         *string `json:"name"`
+			ContactName  *string `json:"contact_name"`
+			ContactEmail *string `json:"contact_email"`
+		}
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		if req.Name != nil {
+			company.Name = *req.Name
+		}
+		if req.ContactName != nil {
+			company.ContactName = *req.ContactName
+		}
+		if req.ContactEmail != nil {
+			company.ContactEmail = *req.ContactEmail
+		}
+		if err := db.Save(&company).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update company"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Company updated successfully", "company": company})
+		return
+	}
+	var quarterObj models.Quarter
+	if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
+		First(&quarterObj).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
+		return
+	}
+	preloadField := allowedData[data]
+	if preloadField == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No editable data specified"})
+		return
+	}
+	switch data {
+	case "finance":
+		var req []models.FinancialHealth
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.FinancialHealth{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "FinancialHealths versioned and inserted"})
+	case "market":
+		var req []models.MarketTraction
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.MarketTraction{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "MarketTractions versioned and inserted"})
+	case "uniteconomics":
+		var req []models.UnitEconomics
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.UnitEconomics{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "UnitEconomics versioned and inserted"})
+	case "teamperf":
+		var req []models.TeamPerformance
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.TeamPerformance{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "TeamPerformances versioned and inserted"})
+	case "fund":
+		var req []models.FundraisingStatus
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.FundraisingStatus{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "FundraisingStatuses versioned and inserted"})
+	case "competitive":
+		var req []models.CompetitiveLandscape
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.CompetitiveLandscape{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "CompetitiveLandscapes versioned and inserted"})
+	case "operation":
+		var req []models.OperationalEfficiency
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.OperationalEfficiency{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "OperationalEfficiencies versioned and inserted"})
+	case "risk":
+		var req []models.RiskManagement
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.RiskManagement{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "RiskManagements versioned and inserted"})
+	case "additional":
+		var req []models.AdditionalInfo
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.AdditionalInfo{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "AdditionalInfos versioned and inserted"})
+	case "self":
+		var req []models.SelfAssessment
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.SelfAssessment{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "SelfAssessments versioned and inserted"})
+	case "attachements":
+		var req []models.Attachment
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		for _, newObj := range req {
+			newObj.QuarterID = quarterObj.ID
+			var maxVersion int
+			db.Model(&models.Attachment{}).
+				Where("quarter_id = ?", quarterObj.ID).
+				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
+			newObj.Version = maxVersion + 1
+			db.Create(&newObj)
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Attachments versioned and inserted"})
+	default:
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
+	}
 }
 
 // DeleteCompany godoc
@@ -307,6 +1126,7 @@ func EditCompanyByID(ctx *gin.Context) {
 // @Failure      401  {object}  map[string]string
 // @Router       /company/delete [delete]
 func DeleteCompany(ctx *gin.Context) {
+	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -354,6 +1174,7 @@ func DeleteCompany(ctx *gin.Context) {
 // @Failure      500  {object}  map[string]string
 // @Router       /manage/company/delete/{id} [delete]
 func DeleteCompanyByID(ctx *gin.Context) {
+	var db = values.GetDB()
 	idStr := ctx.Param("id")
 	idUint, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -401,6 +1222,7 @@ type joinCompanyRequest struct {
 // @Failure      500  {object}  map[string]string
 // @Router       /company/join/{id} [post]
 func JoinCompany(ctx *gin.Context) {
+	var db = values.GetDB()
 	companyIDStr := ctx.Param("id")
 	companyIDUint, err := strconv.ParseUint(companyIDStr, 10, 32)
 	if err != nil {

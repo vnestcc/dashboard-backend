@@ -19,6 +19,7 @@ type DBConfig struct {
 	Password string `toml:"password"`
 	Host     string `toml:"host"`
 	Port     int    `toml:"port"`
+	DBName   string `toml:"dbname"`
 	SSL      bool   `toml:"ssl"`
 }
 

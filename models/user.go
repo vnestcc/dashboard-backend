@@ -30,7 +30,7 @@ type User struct {
 	Role      string `gorm:"not null"`
 	Approved  bool   `gorm:"column:approved,default:false"`
 	StartupID *uint
-	StartUp   *Company
+	StartUp   *Company `gorm:"foreignKey:StartupID;references:ID"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {

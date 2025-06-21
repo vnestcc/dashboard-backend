@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron"
 	"github.com/vnestcc/dashboard/config"
+	"github.com/vnestcc/dashboard/db"
 	"github.com/vnestcc/dashboard/routers"
 	"github.com/vnestcc/dashboard/utils"
 	middleware "github.com/vnestcc/dashboard/utils/middlewares"
@@ -27,13 +28,15 @@ import (
 
 func main() {
 	var cfg config.Config
-	if config, err := config.LoadConfig("./config.toml"); err != nil {
+	if config, err := config.LoadConfig("/config.toml"); err != nil {
 		fmt.Printf("Error in loading config file: %v\n", err)
 		return
 	} else {
 		cfg = config
 	}
 	values.SetConfig(&cfg)
+	db.InitDB(&cfg)
+	values.SetDB(db.DB)
 	utils.NewLogger(cfg.Server.Prod)
 	if cfg.Server.Prod {
 		gin.SetMode(gin.ReleaseMode)
@@ -41,7 +44,7 @@ func main() {
 		gin.SetMode(gin.DebugMode)
 	}
 	s := gocron.NewScheduler(time.UTC)
-	//s.Every("6h").Do(utils.UserCleanUp) TODO: set values.DB for  this
+	s.Every("6h").Do(utils.UserCleanUp)
 	s.StartAsync()
 	r := gin.New()
 	r.Use(middleware.Logger())

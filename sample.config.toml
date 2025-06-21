@@ -1,9 +1,14 @@
 [server]
 host = "127.0.0.1"
 port = 8080
+production = false
+cors-url = "*"
+jwt-secret = "testing"
 
 [db]
 username = "test"
 password = "test"
-host = "localhost"
+host = "database"
 port = 5432
+ssl = false
+dbname = "dashboard"

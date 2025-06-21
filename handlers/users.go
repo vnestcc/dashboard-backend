@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils/values"
 )
 
 type editUserRequest struct {
@@ -26,6 +27,7 @@ type editUserRequest struct {
 // @Failure      500  {object} map[string]string
 // @Router       /user/edit [put]
 func EditUser(ctx *gin.Context) {
+	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -64,6 +66,7 @@ func EditUser(ctx *gin.Context) {
 // @Failure      500  {object} map[string]string
 // @Router       /user/delete [delete]
 func DeleteUser(ctx *gin.Context) {
+	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -99,6 +102,7 @@ type userMeResponse struct {
 // @Failure      500  {object}  map[string]string
 // @Router       /user/me [get]
 func UserMe(ctx *gin.Context) {
+	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})

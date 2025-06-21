@@ -590,7 +590,7 @@ const docTemplate = `{
         },
         "/company/{id}": {
             "get": {
-                "description": "Returns the current user's company information",
+                "description": "Returns the current user's company information, including selectable related data sets",
                 "produces": [
                     "application/json"
                 ],
@@ -598,9 +598,75 @@ const docTemplate = `{
                     "company"
                 ],
                 "summary": "Get company details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "info",
+                            "finance",
+                            "market",
+                            "uniteconomics",
+                            "teamperf",
+                            "fund",
+                            "competitive",
+                            "operation",
+                            "risk",
+                            "additional",
+                            "self",
+                            "attachements"
+                        ],
+                        "type": "string",
+                        "description": "Which related data to include",
+                        "name": "data",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Quarter (e.g. Q1, Q2, Q3, Q4)",
+                        "name": "quarter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Year",
+                        "name": "year",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {

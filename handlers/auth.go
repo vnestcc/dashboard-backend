@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils/values"
 )
 
 var LoginCache = cacher.NewCacher[string, models.User](&cacher.NewCacherOpts{
@@ -18,6 +19,7 @@ var LoginCache = cacher.NewCacher[string, models.User](&cacher.NewCacherOpts{
 })
 
 func generateJWT(id uint, role string) (string, error) {
+	var cfg = values.GetConfig()
 	claims := jwt.MapClaims{
 		"id":   id,
 		"role": role,
@@ -60,6 +62,7 @@ type failedResponse struct {
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/user/signup [post]
 func UserSignupHandler(ctx *gin.Context) {
+	var db = values.GetDB()
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -101,6 +104,7 @@ func UserSignupHandler(ctx *gin.Context) {
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/user/login [post]
 func UserLoginHandler(ctx *gin.Context) {
+	var db = values.GetDB()
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -147,6 +151,7 @@ func UserLoginHandler(ctx *gin.Context) {
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/vc/signup [post]
 func VCSignupHandler(ctx *gin.Context) {
+	var db = values.GetDB()
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -186,6 +191,7 @@ func VCSignupHandler(ctx *gin.Context) {
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/vc/login [post]
 func VCLoginHandler(ctx *gin.Context) {
+	var db = values.GetDB()
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`

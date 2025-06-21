@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"fmt"
+
+	"gorm.io/gorm"
+)
 
 type CompetitiveLandscape struct {
 	gorm.Model
@@ -17,4 +21,66 @@ type CompetitiveLandscape struct {
 
 	IsVisible  int
 	IsEditable int
+}
+
+func (c *CompetitiveLandscape) VisibilityFilter(fullAccess bool) map[string]any {
+	if fullAccess {
+		return map[string]any{
+			"NewCompetitors":       c.NewCompetitors,
+			"CompetitorStrategies": c.CompetitorStrategies,
+			"MarketShifts":         c.MarketShifts,
+			"Differentiators":      c.Differentiators,
+			"Threats":              c.Threats,
+			"DefensiveStrategies":  c.DefensiveStrategies,
+		}
+	}
+
+	result := make(map[string]any)
+	if c.IsVisible&(1<<0) != 0 {
+		result["NewCompetitors"] = c.NewCompetitors
+	}
+	if c.IsVisible&(1<<1) != 0 {
+		result["CompetitorStrategies"] = c.CompetitorStrategies
+	}
+	if c.IsVisible&(1<<2) != 0 {
+		result["MarketShifts"] = c.MarketShifts
+	}
+	if c.IsVisible&(1<<3) != 0 {
+		result["Differentiators"] = c.Differentiators
+	}
+	if c.IsVisible&(1<<4) != 0 {
+		result["Threats"] = c.Threats
+	}
+	if c.IsVisible&(1<<5) != 0 {
+		result["DefensiveStrategies"] = c.DefensiveStrategies
+	}
+	return result
+}
+
+func (c *CompetitiveLandscape) EditableFilter() error {
+	var errFields []string
+
+	if c.IsEditable&(1<<0) == 0 {
+		errFields = append(errFields, "NewCompetitors")
+	}
+	if c.IsEditable&(1<<1) == 0 {
+		errFields = append(errFields, "CompetitorStrategies")
+	}
+	if c.IsEditable&(1<<2) == 0 {
+		errFields = append(errFields, "MarketShifts")
+	}
+	if c.IsEditable&(1<<3) == 0 {
+		errFields = append(errFields, "Differentiators")
+	}
+	if c.IsEditable&(1<<4) == 0 {
+		errFields = append(errFields, "Threats")
+	}
+	if c.IsEditable&(1<<5) == 0 {
+		errFields = append(errFields, "DefensiveStrategies")
+	}
+
+	if len(errFields) > 0 {
+		return fmt.Errorf("fields not editable: %v", errFields)
+	}
+	return nil
 }
