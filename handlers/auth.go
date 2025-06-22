@@ -121,21 +121,24 @@ func UserLoginHandler(ctx *gin.Context) {
 		return
 	}
 	if value, ok := LoginCache.Get(input.Email); ok {
+		ctx.Set("message", fmt.Sprintf("User %d loaded from cache", value.ID))
 		user = value
 	} else {
-		if err := db.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		if err := db.Where("email = ? AND role != vc", input.Email).First(&user).Error; err != nil {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		} else {
+			ctx.Set("message", fmt.Sprintf("User %d added to login cache", user.ID))
 			LoginCache.Set(user.Email, user)
 		}
 	}
 	if ok, err := user.ComparePassword(input.Password); !ok || err != nil {
-		fmt.Println("worng password")
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 	if token, err := generateJWT(user.ID, user.Role); err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
 		return
 	} else {
@@ -204,6 +207,7 @@ func VCLoginHandler(ctx *gin.Context) {
 		return
 	}
 	if value, ok := LoginCache.Get(input.Email); ok {
+		ctx.Set("message", fmt.Sprintf("User %d loaded from login cache", value.ID))
 		user = value
 	} else {
 		if err := db.Where("email = ?", input.Email).First(&user).Error; err != nil {
@@ -211,6 +215,7 @@ func VCLoginHandler(ctx *gin.Context) {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		} else {
+			ctx.Set("message", fmt.Sprintf("User %d added to cache", value.ID))
 			LoginCache.Set(user.Email, user)
 		}
 	}

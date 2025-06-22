@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/AnimeKaizoku/cacher"
 	"github.com/gin-gonic/gin"
 	"github.com/skip2/go-qrcode"
 	"github.com/vnestcc/dashboard/models"
@@ -13,6 +16,12 @@ type editUserRequest struct {
 	Name     string `json:"name" example:"John Doe" binding:"required"`
 	Position string `json:"position" example:"CTO" binding:"required"`
 }
+
+var UserCache = cacher.NewCacher[uint, models.User](&cacher.NewCacherOpts{
+	Revaluate:     true,
+	CleanInterval: 1 * time.Hour,
+	TimeToLive:    3 * time.Minute,
+})
 
 // EditUser godoc
 // @Summary      Edit user profile
@@ -41,6 +50,7 @@ func EditUser(ctx *gin.Context) {
 	}
 	var req editUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
@@ -50,9 +60,12 @@ func EditUser(ctx *gin.Context) {
 			"name":     req.Name,
 			"position": req.Position,
 		}).Error; err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
+	UserCache.Delete(claims.ID)
+	ctx.Set("message", fmt.Sprintf("Deleted User %d from cache", claims.ID))
 	ctx.JSON(http.StatusOK, gin.H{"message": "user updated successfully"})
 }
 
@@ -79,9 +92,12 @@ func DeleteUser(ctx *gin.Context) {
 		return
 	}
 	if err := db.Delete(&models.User{}, claims.ID).Error; err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
+	UserCache.Delete(claims.ID)
+	ctx.Set("message", fmt.Sprintf("Deleted User %d from cache", claims.ID))
 	ctx.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
 }
 
@@ -117,9 +133,18 @@ func UserMe(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := db.First(&user, claims.ID).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
-		return
+	if val, ok := UserCache.Get(claims.ID); ok {
+		ctx.Set("message", fmt.Sprintf("Loaded User %d from cache", claims.ID))
+		user = val
+	} else {
+		if err := db.First(&user, claims.ID).Error; err != nil {
+			ctx.Set("message", err.Error())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+			return
+		} else {
+			ctx.Set("message", fmt.Sprintf("Added User %d to cache", claims.ID))
+			UserCache.Set(claims.ID, user)
+		}
 	}
 	ctx.JSON(http.StatusOK, userMeResponse{
 		ID:       user.ID,
@@ -154,9 +179,18 @@ func UserTOTP(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := db.First(&user, claims.ID).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
-		return
+	if val, ok := UserCache.Get(claims.ID); ok {
+		ctx.Set("message", fmt.Sprintf("Loaded User %d from cache", claims.ID))
+		user = val
+	} else {
+		if err := db.First(&user, claims.ID).Error; err != nil {
+			ctx.Set("message", err.Error())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+			return
+		} else {
+			ctx.Set("message", fmt.Sprintf("Added User %d to cache", claims.ID))
+			UserCache.Set(claims.ID, user)
+		}
 	}
 	totp_url, _ := user.TOTPUrl()
 	png, err := qrcode.Encode(totp_url, qrcode.Medium, 256)
@@ -192,9 +226,18 @@ func UserBackupCode(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := db.First(&user, claims.ID).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
-		return
+	if val, ok := UserCache.Get(claims.ID); ok {
+		ctx.Set("message", fmt.Sprintf("Loaded User %d from cache", claims.ID))
+		user = val
+	} else {
+		if err := db.First(&user, claims.ID).Error; err != nil {
+			ctx.Set("message", err.Error())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+			return
+		} else {
+			ctx.Set("message", fmt.Sprintf("Added User %d to cache", claims.ID))
+			UserCache.Set(claims.ID, user)
+		}
 	}
 	ctx.JSON(http.StatusOK, gin.H{"backup_code": user.BackupCode})
 }
