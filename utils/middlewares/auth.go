@@ -27,12 +27,12 @@ var JWTVerifyHandler gin.HandlerFunc = func(ctx *gin.Context) {
 		return
 	}
 	tokenString := parts[1]
-
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return values.GetConfig().Server.JWTSecret, nil
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+		return []byte(values.GetConfig().Server.JWTSecret), nil
 	})
 	if err != nil || !token.Valid {
+		ctx.Set("message", err.Error())
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		return
 	}
@@ -58,7 +58,6 @@ func RoleCheckHandler(roles ...string) gin.HandlerFunc {
 				return
 			}
 		}
-		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Insufficient role"})
 	}
 }
 

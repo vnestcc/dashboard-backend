@@ -23,9 +23,9 @@ func Logger() gin.HandlerFunc {
 		})
 		switch status {
 		case 404:
-			log.Info("Path not found")
+			log.Trace("Path not found")
 		case 500:
-			log.Error("Internal server error")
+			log.Warn("Internal server error")
 		default:
 			log.Info("Request Processed")
 		}

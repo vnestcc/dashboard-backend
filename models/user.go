@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
+	"github.com/vnestcc/dashboard/utils/values"
 	"golang.org/x/crypto/argon2"
 	"gorm.io/gorm"
 )
@@ -57,47 +60,60 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	hash := argon2.IDKey([]byte(u.Password), salt, timeCost, memoryCost, uint8(parallelism), keyLength)
 	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
-	encoded := fmt.Sprintf("$argon2id$v=19$t=%d$m=%d$p=%d%s%s", timeCost, memoryCost, parallelism, b64Salt, b64Hash)
+	encoded := fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", memoryCost, timeCost, parallelism, b64Salt, b64Hash)
 	u.Password = encoded
-	if code, err_ := generateResetCode(12); err_ != nil {
-		err = err_
-		return
+	if code, err := generateResetCode(12); err != nil {
+		return err
 	} else {
 		u.BackupCode = code
 	}
 	u.CreatedAt = time.Now()
+	if key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      values.GetConfig().Server.TOTPIssuer,
+		AccountName: u.Email,
+		Period:      60,
+		Digits:      otp.Digits(otp.DigitsEight),
+	}); err != nil {
+		return err
+	} else {
+		u.TOTPSecret = key.Secret()
+	}
 	return
 }
 
+func (u *User) TOTPUrl() (string, error) {
+	issuer := values.GetConfig().Server.TOTPIssuer
+	if key, err := otp.NewKeyFromURL(
+		fmt.Sprintf("otpauth://totp/%s:%s?secret=%s&issuer=%s",
+			issuer, u.Email, u.TOTPSecret, issuer),
+	); err != nil {
+		return "", err
+	} else {
+		return key.URL(), nil
+	}
+}
+
+func (u *User) VerifyTOTP(otp string) bool {
+	return totp.Validate(otp, u.TOTPSecret)
+}
 func (u *User) ComparePassword(password string) (bool, error) {
 	parts := strings.Split(u.Password, "$")
 	if len(parts) != 6 {
 		return false, fmt.Errorf("invalid hash format")
 	}
-	var t, m, p uint32
-	_, err := fmt.Sscanf(parts[3], "t=%d", &t)
+	var m, t, p uint32
+	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p)
 	if err != nil {
-		return false, err
-	}
-	_, err = fmt.Sscanf(parts[3], "m=%d", &m)
-	if err != nil {
-		return false, err
-	}
-	_, err = fmt.Sscanf(parts[3], "p=%d", &p)
-	if err != nil {
-		return false, err
+		return false, fmt.Errorf("invalid params section: %v", err)
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("invalid salt encoding: %v", err)
 	}
 	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("invalid hash encoding: %v", err)
 	}
 	actualHash := argon2.IDKey([]byte(password), salt, t, m, uint8(p), uint32(len(expectedHash)))
-	if bytes.Equal(actualHash, expectedHash) {
-		return true, nil
-	}
-	return false, nil
+	return bytes.Equal(actualHash, expectedHash), nil
 }

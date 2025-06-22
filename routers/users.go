@@ -8,7 +8,10 @@ import (
 
 func loadUser(r *gin.RouterGroup) {
 	userRouter := r.Group("/users")
-	userRouter.PUT("/", append(middleware.UserMiddleware, handlers.EditUser)...)
-	userRouter.DELETE("/", append(middleware.UserMiddleware, handlers.DeleteUser)...)
-	userRouter.GET("/me", append(middleware.UserMiddleware, handlers.UserMe)...)
+	userRouter.Use(middleware.UserMiddleware...)
+	userRouter.PUT("/", handlers.EditUser)
+	userRouter.DELETE("/", handlers.DeleteUser)
+	userRouter.GET("/me", handlers.UserMe)
+	userRouter.GET("/totp-qr", handlers.UserTOTP)
+	userRouter.GET("/backup-code", handlers.UserBackupCode)
 }

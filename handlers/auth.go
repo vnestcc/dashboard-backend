@@ -30,7 +30,7 @@ func generateJWT(id uint, role string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(cfg.Server.JWTSecret)
+	return token.SignedString([]byte(cfg.Server.JWTSecret))
 }
 
 type userauthRequest struct {
@@ -63,6 +63,7 @@ type failedResponse struct {
 // @Failure      400    {object}  failedResponse
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/user/signup [post]
+// NOTE: testing done
 func UserSignupHandler(ctx *gin.Context) {
 	var db = values.GetDB()
 	var input struct {
@@ -81,10 +82,12 @@ func UserSignupHandler(ctx *gin.Context) {
 		Role:     "user",
 	}
 	if err := db.Create(&user).Error; err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create the user"})
 		return
 	}
 	if token, err := generateJWT(user.ID, user.Role); err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
 		return
 	} else {
@@ -105,6 +108,7 @@ func UserSignupHandler(ctx *gin.Context) {
 // @Failure      401    {object}  failedResponse
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/user/login [post]
+// NOTE: testing done
 func UserLoginHandler(ctx *gin.Context) {
 	var db = values.GetDB()
 	var input struct {
@@ -127,6 +131,7 @@ func UserLoginHandler(ctx *gin.Context) {
 		}
 	}
 	if ok, err := user.ComparePassword(input.Password); !ok || err != nil {
+		fmt.Println("worng password")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
@@ -150,6 +155,7 @@ func UserLoginHandler(ctx *gin.Context) {
 // @Failure      400    {object}  failedResponse
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/vc/signup [post]
+// NOTE: testing done
 func VCSignupHandler(ctx *gin.Context) {
 	var db = values.GetDB()
 	var input struct {
@@ -166,16 +172,11 @@ func VCSignupHandler(ctx *gin.Context) {
 		Role:     "vc",
 	}
 	if err := db.Create(&user).Error; err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create the user"})
 		return
 	}
-	if token, err := generateJWT(user.ID, user.Role); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
-		return
-	} else {
-		ctx.JSON(http.StatusOK, gin.H{"token": token})
-		return
-	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Your account is submitted for approval"})
 }
 
 // VCLoginHandler godoc
@@ -190,6 +191,7 @@ func VCSignupHandler(ctx *gin.Context) {
 // @Failure      401    {object}  failedResponse
 // @Failure      500    {object}  failedResponse
 // @Router       /auth/vc/login [post]
+// NOTE: testing done
 func VCLoginHandler(ctx *gin.Context) {
 	var db = values.GetDB()
 	var input struct {
@@ -203,17 +205,17 @@ func VCLoginHandler(ctx *gin.Context) {
 	}
 	if value, ok := LoginCache.Get(input.Email); ok {
 		user = value
-		fmt.Println("fonud in cache")
 	} else {
 		if err := db.Where("email = ?", input.Email).First(&user).Error; err != nil {
+			ctx.Set("message", err.Error())
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		} else {
-			fmt.Println("not in cache .. adding to cache")
 			LoginCache.Set(user.Email, user)
 		}
 	}
 	if ok, err := user.ComparePassword(input.Password); !ok || err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
@@ -222,6 +224,7 @@ func VCLoginHandler(ctx *gin.Context) {
 		return
 	}
 	if token, err := generateJWT(user.ID, user.Role); err != nil {
+		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
 		return
 	} else {

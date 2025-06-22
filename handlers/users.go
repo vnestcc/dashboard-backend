@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/skip2/go-qrcode"
 	"github.com/vnestcc/dashboard/models"
 	"github.com/vnestcc/dashboard/utils/values"
 )
@@ -25,7 +26,7 @@ type editUserRequest struct {
 // @Failure      400  {object} map[string]string
 // @Failure      401  {object} map[string]string
 // @Failure      500  {object} map[string]string
-// @Router       /user/edit [put]
+// @Router       /users/edit [put]
 func EditUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
@@ -64,7 +65,7 @@ func EditUser(ctx *gin.Context) {
 // @Success      200  {object} map[string]string
 // @Failure      401  {object} map[string]string
 // @Failure      500  {object} map[string]string
-// @Router       /user/delete [delete]
+// @Router       /users/delete [delete]
 func DeleteUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
@@ -89,6 +90,7 @@ type userMeResponse struct {
 	Name     string `json:"name" example:"Alice"`
 	Position string `json:"position" example:"CEO"`
 	Email    string `json:"email" example:"alice@example.com"`
+	Approved bool   `json:"approved" example:"false"`
 }
 
 // UserMe godoc
@@ -100,7 +102,8 @@ type userMeResponse struct {
 // @Success      200  {object}  userMeResponse
 // @Failure      401  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
-// @Router       /user/me [get]
+// @Router       /users/me [get]
+// NOTE: testing done
 func UserMe(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
@@ -108,7 +111,7 @@ func UserMe(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
@@ -123,5 +126,75 @@ func UserMe(ctx *gin.Context) {
 		Name:     user.Name,
 		Position: user.Position,
 		Email:    user.Email,
+		Approved: user.Approved,
 	})
+}
+
+// UserTOTP godoc
+// @Summary      Get TOTP QR Code
+// @Description  Returns a QR code image for enabling TOTP for the authenticated user
+// @Tags         user
+// @Security     BearerAuth
+// @Produce      png
+// @Success      200  {file}  png
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users/totp-qr [get]
+// NOTE: testing done
+func UserTOTP(ctx *gin.Context) {
+	var db = values.GetDB()
+	claimsVal, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims, ok := claimsVal.(*Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
+		return
+	}
+	var user models.User
+	if err := db.First(&user, claims.ID).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+	totp_url, _ := user.TOTPUrl()
+	png, err := qrcode.Encode(totp_url, qrcode.Medium, 256)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate QR code"})
+		return
+	}
+	ctx.Header("Content-Type", "image/png")
+	ctx.Writer.Write(png)
+}
+
+// UserBackupCode godoc
+// @Summary      Get TOTP Backup Code
+// @Description  Returns the TOTP backup code for the authenticated user
+// @Tags         user
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users/backup-code [get]
+// NOTE: testing done
+func UserBackupCode(ctx *gin.Context) {
+	var db = values.GetDB()
+	claimsVal, exists := ctx.Get("claims")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims, ok := claimsVal.(*Claims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
+		return
+	}
+	var user models.User
+	if err := db.First(&user, claims.ID).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"backup_code": user.BackupCode})
 }

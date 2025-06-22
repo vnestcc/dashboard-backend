@@ -29,8 +29,7 @@ type vcModel struct {
 func GetVCList(ctx *gin.Context) {
 	var db = values.GetDB()
 	var vc []models.User
-	role := "vc"
-	if err := db.Where("role = ?", role).Find(&vc).Error; err != nil {
+	if err := db.Where("role = vc").Find(&vc).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get the list of vc"})
 		return
 	}

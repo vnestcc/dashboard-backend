@@ -22,7 +22,7 @@ var StartupCache = cacher.NewCacher[uint, models.Company](&cacher.NewCacherOpts{
 	Revaluate:     true,
 })
 
-type Claims middleware.Claims
+type Claims = middleware.Claims
 
 // UserCompany godoc
 // @Summary      Get current user's company
@@ -234,7 +234,7 @@ func GetCompanyByID(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
-	full_access := (claims.Role == "admin") || (company.ID == *user.StartupID)
+	full_access := (claims.Role == "admin") || (companyID == *user.StartupID)
 	switch data {
 	case "", "info":
 		ctx.JSON(http.StatusOK, gin.H{
