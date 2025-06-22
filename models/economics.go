@@ -20,8 +20,8 @@ type UnitEconomics struct {
 
 	MarketingBreakdowns []MarketingBreakdown
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:127"`
+	IsEditable int `gorm:"default:127"`
 }
 
 type MarketingBreakdown struct {

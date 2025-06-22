@@ -19,8 +19,8 @@ type FundraisingStatus struct {
 	InvestorPipeline      string
 	ValuationExpectations string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:127"`
+	IsEditable int `gorm:"default:127"`
 }
 
 // VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.

@@ -22,8 +22,8 @@ type ProductDevelopment struct {
 	TechnicalDebt       string
 	ProductBottlenecks  string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:1023"`
+	IsEditable int `gorm:"default:1023"`
 }
 
 // Bit positions: 0 = MilestonesAchieved, 1 = MilestonesMissed, 2 = Roadmap, 3 = ActiveUsers, 4 = EngagementMetrics,

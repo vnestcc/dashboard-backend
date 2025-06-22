@@ -19,8 +19,8 @@ type CompetitiveLandscape struct {
 	Threats              string
 	DefensiveStrategies  string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:63"`
+	IsEditable int `gorm:"default:63"`
 }
 
 func (c *CompetitiveLandscape) VisibilityFilter(fullAccess bool) map[string]any {

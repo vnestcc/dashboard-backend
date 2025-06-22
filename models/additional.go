@@ -12,16 +12,16 @@ type AdditionalInfo struct {
 	QuarterID                uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
 	Version                  int    `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 	GrowthChallenges         string // bit 0
-	SupportNeeded            string
-	PolicyChanges            string
-	PolicyImpact             string
-	MitigationStrategies     string
-	NewInitiatives           string
-	InitiativeProgress       string
+	SupportNeeded            string // bit 1
+	PolicyChanges            string // bit 2
+	PolicyImpact             string // bit 3
+	MitigationStrategies     string // bit 4
+	NewInitiatives           string // bit 5
+	InitiativeProgress       string // bit 6
 	BusinessModelAdjustments string // bit 7
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:255"`
+	IsEditable int `gorm:"default:255"`
 }
 
 func (a *AdditionalInfo) VisibilityFilter(fullAccess bool) map[string]any {

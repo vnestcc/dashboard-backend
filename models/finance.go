@@ -23,8 +23,8 @@ type FinancialHealth struct {
 
 	RevenueBreakdowns []RevenueBreakdown
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:1023"`
+	IsEditable int `gorm:"default:1023"`
 }
 
 type RevenueBreakdown struct {

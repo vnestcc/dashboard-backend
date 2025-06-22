@@ -8,17 +8,17 @@ import (
 
 type Attachment struct {
 	gorm.Model
-	CompanyID            uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID            uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version              int  `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	FinancialStatements  string
-	PitchDeck            string
+	CompanyID            uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID            uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version              int    `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	FinancialStatements  string // bit 0
+	PitchDeck            string // bit 1
 	ProductRoadmap       string
 	PerformanceDashboard string
-	OrgChart             string
+	OrgChart             string // bit 4
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:31"`
+	IsEditable int `gorm:"default:31"`
 }
 
 func (a *Attachment) VisibilityFilter(fullAccess bool) map[string]any {

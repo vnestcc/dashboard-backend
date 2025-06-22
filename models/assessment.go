@@ -50,8 +50,8 @@ type SelfAssessment struct {
 	Priorities        Priorities `gorm:"type:text"`
 	IncubatorSupport  string     // bit 7
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:255"`
+	IsEditable int `gorm:"default:255"`
 }
 
 func (s *SelfAssessment) BeforeSave(tx *gorm.DB) (err error) {

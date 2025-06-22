@@ -20,8 +20,8 @@ type TeamPerformance struct {
 	SkillGaps              string
 	DevelopmentInitiatives string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:255"`
+	IsEditable int `gorm:"default:255"`
 }
 
 // Bit positions: 0 = TeamSize, 1 = NewHires, 2 = Turnover, 3 = VacantPositions, 4 = LeadershipAlignment,

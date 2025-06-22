@@ -20,8 +20,8 @@ type RiskManagement struct {
 	KeyDependencies    string
 	ContingencyPlans   string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:255"`
+	IsEditable int `gorm:"default:255"`
 }
 
 // Bit positions: 0 = RegulatoryChanges, 1 = ComplianceStatus, 2 = RegulatoryConcerns, 3 = SecurityAudits,

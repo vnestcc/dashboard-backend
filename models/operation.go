@@ -18,8 +18,8 @@ type OperationalEfficiency struct {
 	InfrastructureCapacity string
 	ScalingPlans           string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  int `gorm:"default:63"`
+	IsEditable int `gorm:"default:63"`
 }
 
 // Bit positions: 0 = OperationalChanges, 1 = ImpactMetrics, 2 = OptimizationAreas, 3 = OperationalBottlenecks, 4 = InfrastructureCapacity, 5 = ScalingPlans
