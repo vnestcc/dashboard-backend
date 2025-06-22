@@ -79,6 +79,9 @@ definitions:
     type: object
   handlers.userMeResponse:
     properties:
+      approved:
+        example: false
+        type: boolean
       email:
         example: alice@example.com
         type: string
@@ -961,7 +964,36 @@ paths:
       summary: Health Check
       tags:
       - healthcheck
-  /user/delete:
+  /users/backup-code:
+    get:
+      description: Returns the TOTP backup code for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get TOTP Backup Code
+      tags:
+      - user
+  /users/delete:
     delete:
       description: Deletes the current authenticated user
       produces:
@@ -990,7 +1022,7 @@ paths:
       summary: Delete user account
       tags:
       - user
-  /user/edit:
+  /users/edit:
     put:
       consumes:
       - application/json
@@ -1034,7 +1066,7 @@ paths:
       summary: Edit user profile
       tags:
       - user
-  /user/me:
+  /users/me:
     get:
       description: Returns details of the authenticated user
       produces:
@@ -1059,6 +1091,34 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user info
+      tags:
+      - user
+  /users/totp-qr:
+    get:
+      description: Returns a QR code image for enabling TOTP for the authenticated
+        user
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get TOTP QR Code
       tags:
       - user
 securityDefinitions:

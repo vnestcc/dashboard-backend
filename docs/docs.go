@@ -1257,7 +1257,53 @@ const docTemplate = `{
                 }
             }
         },
-        "/user/delete": {
+        "/users/backup-code": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the TOTP backup code for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get TOTP Backup Code",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/delete": {
             "delete": {
                 "security": [
                     {
@@ -1303,7 +1349,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/user/edit": {
+        "/users/edit": {
             "put": {
                 "security": [
                     {
@@ -1372,7 +1418,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/user/me": {
+        "/users/me": {
             "get": {
                 "security": [
                     {
@@ -1392,6 +1438,49 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.userMeResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/totp-qr": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a QR code image for enabling TOTP for the authenticated user",
+                "produces": [
+                    "image/png"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get TOTP QR Code",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
                         }
                     },
                     "401": {
@@ -1531,6 +1620,10 @@ const docTemplate = `{
         "handlers.userMeResponse": {
             "type": "object",
             "properties": {
+                "approved": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "email": {
                     "type": "string",
                     "example": "alice@example.com"
