@@ -360,7 +360,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the existing company data",
+                "description": "Updates the existing company data. If ` + "`" + `data=info` + "`" + ` or omitted, updates company name, contact name, and contact email. Otherwise, allows versioned updates for specific company data types (such as finance, market, uniteconomics, etc) for a given quarter and year. The allowed types are: finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements. All data modifications are subject to field-level editability checks based on the current IsEditable mask for each record.",
                 "consumes": [
                     "application/json"
                 ],
@@ -371,9 +371,95 @@ const docTemplate = `{
                     "company"
                 ],
                 "summary": "Edit company information",
+                "parameters": [
+                    {
+                        "enum": [
+                            "info",
+                            "finance",
+                            "market",
+                            "uniteconomics",
+                            "teamperf",
+                            "fund",
+                            "competitive",
+                            "operation",
+                            "risk",
+                            "additional",
+                            "self",
+                            "attachements"
+                        ],
+                        "type": "string",
+                        "description": "Which related data to include",
+                        "name": "data",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info",
+                        "name": "quarter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Year (e.g. 2024). Required unless data=info",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Payload matching the type of data being edited",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not permitted by edit mask",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Company or quarter not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server/database error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -731,6 +817,187 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/manage/company/edit/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows admin to insert new versioned data for company or related quarter data. If ` + "`" + `data=info` + "`" + ` or omitted, updates company name, contact name, and contact email. Otherwise, allows versioned updates for specific company data types (such as finance, market, uniteconomics, etc) for a given quarter and year. The allowed types are: finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements. All data modifications will insert a new version for the specified quarter and year.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Edit company details (Admin, versioned insert)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of company data to edit (info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)",
+                        "name": "data",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info",
+                        "name": "quarter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Year (e.g. 2024). Required unless data=info",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Payload matching the type of data being edited",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Company or quarter not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server/database error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/manage/company/{id}": {
+            "get": {
+                "description": "Returns the specified company's information, including selectable related data sets (admin only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "company"
+                ],
+                "summary": "Get company details (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "info",
+                            "finance",
+                            "market",
+                            "uniteconomics",
+                            "teamperf",
+                            "fund",
+                            "competitive",
+                            "operation",
+                            "risk",
+                            "additional",
+                            "self",
+                            "attachements"
+                        ],
+                        "type": "string",
+                        "description": "Which related data to include",
+                        "name": "data",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Quarter (e.g. Q1, Q2, Q3, Q4)",
+                        "name": "quarter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Year",
+                        "name": "year",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {

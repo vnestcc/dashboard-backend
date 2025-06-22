@@ -416,12 +416,79 @@ paths:
     put:
       consumes:
       - application/json
-      description: Updates the existing company data
+      description: 'Updates the existing company data. If `data=info` or omitted,
+        updates company name, contact name, and contact email. Otherwise, allows versioned
+        updates for specific company data types (such as finance, market, uniteconomics,
+        etc) for a given quarter and year. The allowed types are: finance, market,
+        uniteconomics, teamperf, fund, competitive, operation, risk, additional, self,
+        attachements. All data modifications are subject to field-level editability
+        checks based on the current IsEditable mask for each record.'
+      parameters:
+      - description: Which related data to include
+        enum:
+        - info
+        - finance
+        - market
+        - uniteconomics
+        - teamperf
+        - fund
+        - competitive
+        - operation
+        - risk
+        - additional
+        - self
+        - attachements
+        in: query
+        name: data
+        type: string
+      - description: Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info
+        in: query
+        name: quarter
+        type: string
+      - description: Year (e.g. 2024). Required unless data=info
+        in: query
+        name: year
+        type: integer
+      - description: Payload matching the type of data being edited
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
       produces:
       - application/json
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Not permitted by edit mask
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Company or quarter not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server/database error
           schema:
             additionalProperties:
               type: string
@@ -563,6 +630,70 @@ paths:
       summary: List quarters by company
       tags:
       - company
+  /manage/company/{id}:
+    get:
+      description: Returns the specified company's information, including selectable
+        related data sets (admin only).
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Which related data to include
+        enum:
+        - info
+        - finance
+        - market
+        - uniteconomics
+        - teamperf
+        - fund
+        - competitive
+        - operation
+        - risk
+        - additional
+        - self
+        - attachements
+        in: query
+        name: data
+        type: string
+      - description: Quarter (e.g. Q1, Q2, Q3, Q4)
+        in: query
+        name: quarter
+        type: string
+      - description: Year
+        in: query
+        name: year
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get company details (Admin)
+      tags:
+      - company
   /manage/company/delete/{id}:
     delete:
       description: Deletes a company by its ID (admin only)
@@ -614,6 +745,73 @@ paths:
       security:
       - BearerAuth: []
       summary: Admin delete company
+      tags:
+      - admin
+  /manage/company/edit/{id}:
+    put:
+      consumes:
+      - application/json
+      description: 'Allows admin to insert new versioned data for company or related
+        quarter data. If `data=info` or omitted, updates company name, contact name,
+        and contact email. Otherwise, allows versioned updates for specific company
+        data types (such as finance, market, uniteconomics, etc) for a given quarter
+        and year. The allowed types are: finance, market, uniteconomics, teamperf,
+        fund, competitive, operation, risk, additional, self, attachements. All data
+        modifications will insert a new version for the specified quarter and year.'
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Type of company data to edit (info, finance, market, uniteconomics,
+          teamperf, fund, competitive, operation, risk, additional, self, attachements)
+        in: query
+        name: data
+        type: string
+      - description: Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info
+        in: query
+        name: quarter
+        type: string
+      - description: Year (e.g. 2024). Required unless data=info
+        in: query
+        name: year
+        type: integer
+      - description: Payload matching the type of data being edited
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Company or quarter not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server/database error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Edit company details (Admin, versioned insert)
       tags:
       - admin
   /manage/vc/{id}:
