@@ -23,13 +23,13 @@ const (
 
 type User struct {
 	gorm.Model
-	ID         uint `gorm:"primaryKey,autoIncrement"`
+	ID         uint `gorm:"primaryKey;autoIncrement"`
 	Name       string
 	Position   string
 	Email      string `gorm:"unique"`
 	Password   string
 	Role       string `gorm:"not null"`
-	Approved   bool   `gorm:"column:approved,default:false"`
+	Approved   bool   `gorm:"default:false"`
 	BackupCode string `gorm:"unique"`
 	TOTPSecret string `gorm:"unique"`
 	StartupID  *uint

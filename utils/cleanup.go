@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/vnestcc/dashboard/models"
 	"github.com/vnestcc/dashboard/utils/values"
 )
@@ -15,5 +15,5 @@ func UserCleanUp() {
 
 	db.Where("role = ? AND startup_id IS NULL AND created_at <= ?", "user", cutoff).Delete(&models.User{})
 
-	fmt.Println("Scheduled cleanup ran at:", now.Format(time.RFC3339))
+	logrus.Println("Scheduled cleanup ran at:", now.Format(time.RFC3339))
 }

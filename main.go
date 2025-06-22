@@ -11,6 +11,8 @@ package main
 // @name Authorization
 // @description Type "Bearer" and your JWT token for authentication and authorization
 
+// TODO: TOTP implementation from ground up for forgot password
+// TODO: Every user gets a backup code for reseting password
 import (
 	"fmt"
 	"time"

@@ -10,8 +10,8 @@ import (
 
 	"github.com/AnimeKaizoku/cacher"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/vnestcc/dashboard/models"
+	middleware "github.com/vnestcc/dashboard/utils/middlewares"
 	"github.com/vnestcc/dashboard/utils/values"
 	"gorm.io/gorm"
 )
@@ -22,11 +22,7 @@ var StartupCache = cacher.NewCacher[uint, models.Company](&cacher.NewCacherOpts{
 	Revaluate:     true,
 })
 
-type Claims struct {
-	Id   uint
-	Role string
-	jwt.RegisteredClaims
-}
+type Claims middleware.Claims
 
 // UserCompany godoc
 // @Summary      Get current user's company
@@ -460,7 +456,7 @@ func CreateCompany(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := db.First(&user, claims.Id).Error; err != nil {
+	if err := db.First(&user, claims.ID).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
@@ -492,14 +488,41 @@ func CreateCompany(ctx *gin.Context) {
 	})
 }
 
+// GetCompanyByIDAdmin godoc
+// @Summary      Get company details (Admin)
+// @Description  Returns the specified company's information, including selectable related data sets (admin only).
+// @Tags         company
+// @Produce      json
+// @Param        id       path   int     true  "Company ID"
+// @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
+// @Param        quarter  query  string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
+// @Param        year     query  int     false "Year"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /manage/company/{id} [get]
+func GetCompanyByIDAdmin(ctx *gin.Context) {
+
+}
+
 // EditCompany godoc
 // @Summary      Edit company information
-// @Description  Updates the existing company data
+// @Description  Updates the existing company data. If `data=info` or omitted, updates company name, contact name, and contact email. Otherwise, allows versioned updates for specific company data types (such as finance, market, uniteconomics, etc) for a given quarter and year. The allowed types are: finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements. All data modifications are subject to field-level editability checks based on the current IsEditable mask for each record.
 // @Security     BearerAuth
 // @Tags         company
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  map[string]string
+// @Param        data   query     string  false  "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
+// @Param        quarter query    string  false  "Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info" Enum(Q1,Q2,Q3,Q4)
+// @Param        year    query    int  false  "Year (e.g. 2024). Required unless data=info"
+// @Param        body    body     object  true   "Payload matching the type of data being edited"
+// @Success      200  {object}  map[string]any
+// @Failure      400  {object}  map[string]string  "Invalid request or body"
+// @Failure      401  {object}  map[string]string  "Unauthorized"
+// @Failure      403  {object}  map[string]string  "Not permitted by edit mask"
+// @Failure      404  {object}  map[string]string  "Company or quarter not found"
+// @Failure      500  {object}  map[string]string  "Server/database error"
 // @Router       /company/edit [put]
 func EditCompany(ctx *gin.Context) {
 	var db = values.GetDB()
@@ -828,18 +851,20 @@ func EditCompany(ctx *gin.Context) {
 
 // EditCompanyByID godoc
 // @Summary      Edit company details (Admin, versioned insert)
-// @Description  Allows admin to insert new versioned data for company or related quarter data
-// @Security 		 BearerAuth
-// @Tags         company
+// @Description  Allows admin to insert new versioned data for company or related quarter data. If `data=info` or omitted, updates company name, contact name, and contact email. Otherwise, allows versioned updates for specific company data types (such as finance, market, uniteconomics, etc) for a given quarter and year. The allowed types are: finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements. All data modifications will insert a new version for the specified quarter and year.
+// @Security     BearerAuth
+// @Tags         admin
+// @Accept       json
 // @Produce      json
-// @Param        id    path      int     true  "Company ID"
-// @Param        data  query     string  false "Which related data to edit. One of: info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements"
-// @Param        quarter query   string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
-// @Param        year  query     int     false "Year"
+// @Param        id      path      int     true  "Company ID"
+// @Param        data    query     string  false "Type of company data to edit (info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)"
+// @Param        quarter query     string  false "Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info" Enum(Q1,Q2,Q3,Q4)
+// @Param        year    query     int     false "Year (e.g. 2024). Required unless data=info"
+// @Param        body    body      object  true  "Payload matching the type of data being edited"
 // @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]string
-// @Failure      404  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
+// @Failure      400  {object}  map[string]string  "Invalid request or body"
+// @Failure      404  {object}  map[string]string  "Company or quarter not found"
+// @Failure      500  {object}  map[string]string  "Server/database error"
 // @Router       /manage/company/edit/{id} [put]
 // OPTIMIZE: whatever is written here is not meant for production. I pray for the server :pray:
 func EditCompanyByID(ctx *gin.Context) {
@@ -1138,7 +1163,7 @@ func DeleteCompany(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := db.Preload("StartUp").First(&user, claims.Id).Error; err != nil {
+	if err := db.Preload("StartUp").First(&user, claims.ID).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
@@ -1247,7 +1272,7 @@ func JoinCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
-	userID := claims.Id
+	userID := claims.ID
 	var user models.User
 	if err := db.First(&user, userID).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})

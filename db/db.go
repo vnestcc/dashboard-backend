@@ -5,6 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vnestcc/dashboard/config"
+	"github.com/vnestcc/dashboard/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -27,15 +28,36 @@ func InitDB(cfg *config.Config) {
 			return "disable"
 		}(),
 	)
-	fmt.Println(dsn)
-
+	logger_level := func() logger.LogLevel {
+		if cfg.Server.Prod {
+			return logger.Silent
+		} else {
+			return logger.Info
+		}
+	}
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		TranslateError: true,
-		Logger:         logger.Default.LogMode(logger.Silent),
+		Logger:         logger.Default.LogMode(logger_level()),
 	})
 	if err != nil {
 		logrus.Fatalf("failed to connect to database: %v", err)
 	}
 	logrus.Println("Database connection established")
+	DB.AutoMigrate(
+		&models.Company{},
+		&models.User{},
+		&models.Quarter{},
+		&models.FinancialHealth{},
+		&models.MarketTraction{},
+		&models.UnitEconomics{},
+		&models.TeamPerformance{},
+		&models.FundraisingStatus{},
+		&models.CompetitiveLandscape{},
+		&models.OperationalEfficiency{},
+		&models.RiskManagement{},
+		&models.AdditionalInfo{},
+		&models.SelfAssessment{},
+		&models.Attachment{},
+	)
 }

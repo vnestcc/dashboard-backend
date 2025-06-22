@@ -12,6 +12,8 @@ import (
 	"github.com/vnestcc/dashboard/utils/values"
 )
 
+// Everyone who did a successful totp verification will be issued a token which they can use for reseting the password which is valid for x min
+
 var LoginCache = cacher.NewCacher[string, models.User](&cacher.NewCacherOpts{
 	TimeToLive:    time.Minute * 3,
 	CleanInterval: time.Hour * 1,
@@ -116,13 +118,11 @@ func UserLoginHandler(ctx *gin.Context) {
 	}
 	if value, ok := LoginCache.Get(input.Email); ok {
 		user = value
-		fmt.Println("fonud in cache")
 	} else {
 		if err := db.Where("email = ?", input.Email).First(&user).Error; err != nil {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		} else {
-			fmt.Println("not in cache .. adding to cache")
 			LoginCache.Set(user.Email, user)
 		}
 	}
