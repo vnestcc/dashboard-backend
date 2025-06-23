@@ -8,6 +8,5 @@ RUN go build -ldflags="-s -w" -o server
 
 FROM gcr.io/distroless/cc
 COPY --from=builder /app/server /server
-COPY --from=builder /app/config.toml /config.toml
 EXPOSE 8080
 CMD ["/server"]
