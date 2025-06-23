@@ -8,6 +8,120 @@
     },
     "basePath": "/api",
     "paths": {
+        "/auth/forgot-password": {
+            "post": {
+                "description": "Request to reset password using either OTP or Backup Code. Only one must be provided.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Forgot Password request",
+                "parameters": [
+                    {
+                        "description": "Forgot Password Input",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.forgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.resetTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/reset-password/{token}": {
+            "post": {
+                "description": "Resets the user's password using the reset token issued after OTP/Backup Code verification. The token must be valid and not expired.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Reset Password",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Reset Token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New Password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.resetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset successful",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/user/login": {
             "post": {
                 "description": "Authenticates a user by email and password. Uses a cache lookup before querying the database. Returns a JWT token on success.",
@@ -1250,24 +1364,47 @@
                 }
             }
         },
-        "/users/backup-code": {
-            "get": {
+        "/users": {
+            "put": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the TOTP backup code for the authenticated user",
+                "description": "Allows a user to edit only their name and position",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "user"
                 ],
-                "summary": "Get TOTP Backup Code",
+                "summary": "Edit user profile",
+                "parameters": [
+                    {
+                        "description": "Edit user name and position",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.editUserRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1294,9 +1431,7 @@
                         }
                     }
                 }
-            }
-        },
-        "/users/delete": {
+            },
             "delete": {
                 "security": [
                     {
@@ -1342,47 +1477,24 @@
                 }
             }
         },
-        "/users/edit": {
-            "put": {
+        "/users/backup-code": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allows a user to edit only their name and position",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Returns the TOTP backup code for the authenticated user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "user"
                 ],
-                "summary": "Edit user profile",
-                "parameters": [
-                    {
-                        "description": "Edit user name and position",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.editUserRequest"
-                        }
-                    }
-                ],
+                "summary": "Get TOTP Backup Code",
                 "responses": {
                     "200": {
                         "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1559,6 +1671,26 @@
                 }
             }
         },
+        "handlers.forgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "backup_code": {
+                    "type": "string",
+                    "example": "123456789012"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "example@vnest.org"
+                },
+                "otp": {
+                    "type": "string",
+                    "example": "112233"
+                }
+            }
+        },
         "handlers.joinCompanyRequest": {
             "type": "object",
             "required": [
@@ -1598,6 +1730,28 @@
                 "year": {
                     "type": "integer",
                     "example": 2025
+                }
+            }
+        },
+        "handlers.resetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "MyNewStrongPassword"
+                }
+            }
+        },
+        "handlers.resetTokenResponse": {
+            "type": "object",
+            "properties": {
+                "reset_token": {
+                    "type": "string",
+                    "example": "abc123def456..."
                 }
             }
         },

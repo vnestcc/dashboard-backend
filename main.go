@@ -22,6 +22,7 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/vnestcc/dashboard/config"
 	"github.com/vnestcc/dashboard/db"
+	"github.com/vnestcc/dashboard/handlers"
 	"github.com/vnestcc/dashboard/routers"
 	"github.com/vnestcc/dashboard/utils"
 	middleware "github.com/vnestcc/dashboard/utils/middlewares"
@@ -48,6 +49,7 @@ func main() {
 	s := gocron.NewScheduler(time.UTC)
 	s.Every("6h").Do(utils.UserCleanUp)
 	s.StartAsync()
+	handlers.InitHandler(&cfg)
 	r := gin.New()
 	r.Use(middleware.Logger())
 	r.Use(cors.New(cors.Config{

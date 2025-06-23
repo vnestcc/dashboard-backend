@@ -81,6 +81,20 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
+func (u *User) SetPassword(password string) (err error) {
+	err = nil
+	salt := make([]byte, saltLength)
+	if _, err = rand.Read(salt); err != nil {
+		return
+	}
+	hash := argon2.IDKey([]byte(password), salt, timeCost, memoryCost, uint8(parallelism), keyLength)
+	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
+	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
+	encoded := fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", memoryCost, timeCost, parallelism, b64Salt, b64Hash)
+	u.Password = encoded
+	return
+}
+
 func (u *User) TOTPUrl() (string, error) {
 	issuer := values.GetConfig().Server.TOTPIssuer
 	if key, err := otp.NewKeyFromURL(
@@ -96,24 +110,28 @@ func (u *User) TOTPUrl() (string, error) {
 func (u *User) VerifyTOTP(otp string) bool {
 	return totp.Validate(otp, u.TOTPSecret)
 }
-func (u *User) ComparePassword(password string) (bool, error) {
+
+func (u *User) ComparePassword(password string) error {
 	parts := strings.Split(u.Password, "$")
 	if len(parts) != 6 {
-		return false, fmt.Errorf("invalid hash format")
+		return fmt.Errorf("invalid hash format")
 	}
 	var m, t, p uint32
 	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p)
 	if err != nil {
-		return false, fmt.Errorf("invalid params section: %v", err)
+		return fmt.Errorf("invalid params section: %v", err)
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
-		return false, fmt.Errorf("invalid salt encoding: %v", err)
+		return fmt.Errorf("invalid salt encoding: %v", err)
 	}
 	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
-		return false, fmt.Errorf("invalid hash encoding: %v", err)
+		return fmt.Errorf("invalid hash encoding: %v", err)
 	}
 	actualHash := argon2.IDKey([]byte(password), salt, t, m, uint8(p), uint32(len(expectedHash)))
-	return bytes.Equal(actualHash, expectedHash), nil
+	if !bytes.Equal(actualHash, expectedHash) {
+		return fmt.Errorf("wrong password")
+	}
+	return nil
 }

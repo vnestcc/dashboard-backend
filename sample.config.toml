@@ -1,9 +1,11 @@
 [server]
-host = "127.0.0.1"
+host = "0.0.0.0"
 port = 8080
-production = true
+production = false
 cors-url = "*"
 jwt-secret = "testing"
+token-expiry = 10
+totp-issuer = "V-NEST"
 
 [db]
 username = "test"

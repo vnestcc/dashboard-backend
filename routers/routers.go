@@ -19,10 +19,9 @@ func LoadRoutes(r *gin.Engine) {
 		apiRouter.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	loadUserAuth(apiRouter)
+	loadAuth(apiRouter)
 	loadCompanies(apiRouter)
 	loadManage(apiRouter)
-	loadVCAuth(apiRouter)
 	loadUser(apiRouter)
 
 	apiRouter.GET("/ping", handlers.PingHandler)

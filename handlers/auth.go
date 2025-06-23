@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
@@ -12,12 +14,9 @@ import (
 	"github.com/vnestcc/dashboard/utils/values"
 )
 
-// Everyone who did a successful totp verification will be issued a token which they can use for reseting the password which is valid for x min
-
 var LoginCache = cacher.NewCacher[string, models.User](&cacher.NewCacherOpts{
 	TimeToLive:    time.Minute * 3,
 	CleanInterval: time.Hour * 1,
-	Revaluate:     true,
 })
 
 func generateJWT(id uint, role string) (string, error) {
@@ -124,7 +123,7 @@ func UserLoginHandler(ctx *gin.Context) {
 		ctx.Set("message", fmt.Sprintf("User %d loaded from cache", value.ID))
 		user = value
 	} else {
-		if err := db.Where("email = ? AND role != vc", input.Email).First(&user).Error; err != nil {
+		if err := db.Where("email = ? AND role != 'vc'", input.Email).First(&user).Error; err != nil {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		} else {
@@ -132,7 +131,7 @@ func UserLoginHandler(ctx *gin.Context) {
 			LoginCache.Set(user.Email, user)
 		}
 	}
-	if ok, err := user.ComparePassword(input.Password); !ok || err != nil {
+	if err := user.ComparePassword(input.Password); err != nil {
 		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -210,7 +209,7 @@ func VCLoginHandler(ctx *gin.Context) {
 		ctx.Set("message", fmt.Sprintf("User %d loaded from login cache", value.ID))
 		user = value
 	} else {
-		if err := db.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		if err := db.Where("email = ? AND role != 'user'", input.Email).First(&user).Error; err != nil {
 			ctx.Set("message", err.Error())
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
@@ -219,7 +218,7 @@ func VCLoginHandler(ctx *gin.Context) {
 			LoginCache.Set(user.Email, user)
 		}
 	}
-	if ok, err := user.ComparePassword(input.Password); !ok || err != nil {
+	if err := user.ComparePassword(input.Password); err != nil {
 		ctx.Set("message", err.Error())
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -236,4 +235,129 @@ func VCLoginHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"token": token})
 		return
 	}
+}
+
+type forgotPasswordRequest struct {
+	Email      string  `json:"email" example:"example@vnest.org" binding:"required,email"`
+	OTP        *string `json:"otp" example:"112233"`
+	BackupCode *string `json:"backup_code" example:"123456789012"`
+}
+
+type resetTokenResponse struct {
+	ResetToken string `json:"reset_token" example:"abc123def456..."`
+}
+
+// ForgotPassword godoc
+// @Summary      Forgot Password request
+// @Description  Request to reset password using either OTP or Backup Code. Only one must be provided.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body    forgotPasswordRequest  true  "Forgot Password Input"
+// @Success      200    {object}  resetTokenResponse
+// @Failure      400    {object}  failedResponse
+// @Failure      401    {object}  failedResponse
+// @Failure      500    {object}  failedResponse
+// @Router       /auth/forgot-password [post]
+// NOTE: test done
+func ForgotPassword(ctx *gin.Context) {
+	var input forgotPasswordRequest
+	var db = values.GetDB()
+	var user models.User
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	otpSet := input.OTP != nil && *input.OTP != ""
+	backupSet := input.BackupCode != nil && *input.BackupCode != ""
+	if (otpSet && backupSet) || (!otpSet && !backupSet) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Provide either OTP or Backup Code, not both"})
+		return
+	}
+	if value, ok := LoginCache.Get(input.Email); ok {
+		ctx.Set("message", fmt.Sprintf("User %d loaded from login cache", value.ID))
+		user = value
+	} else {
+		if err := db.Where("email = ?", input.Email).First(&user).Error; err != nil {
+			ctx.Set("message", err.Error())
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			return
+		}
+	}
+	if otpSet && user.VerifyTOTP(*input.OTP) {
+		ctx.Set("message", fmt.Sprintf("User %d reseting password using TOTP", user.ID))
+	} else if backupSet && user.BackupCode == *input.BackupCode {
+		ctx.Set("message", fmt.Sprintf("User %d reseting password using Backup code", user.ID))
+	} else {
+		errMsg := "Invalid credentials"
+		if otpSet {
+			errMsg = "Invalid OTP"
+		} else if backupSet {
+			errMsg = "Invalid Backup Code"
+		}
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": errMsg})
+		return
+	}
+	random := make([]byte, 20)
+	_, err := rand.Read(random)
+	if err != nil {
+		ctx.Set("message", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+	token := hex.EncodeToString(random)
+	ResetPasswordCache.Set(token, user)
+	ctx.JSON(http.StatusOK, resetTokenResponse{
+		ResetToken: token,
+	})
+}
+
+type resetPasswordRequest struct {
+	Password string `json:"password" example:"MyNewStrongPassword" binding:"required,min=8"`
+}
+
+// ResetPassword godoc
+// @Summary      Reset Password
+// @Description  Resets the user's password using the reset token issued after OTP/Backup Code verification. The token must be valid and not expired.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        token    path     string                true  "Reset Token"
+// @Param        request  body     resetPasswordRequest  true  "New Password"
+// @Success      200      {object} map[string]string            "Password reset successful"
+// @Failure      400      {object} failedResponse
+// @Failure      401      {object} failedResponse
+// @Failure      500      {object} failedResponse
+// @Router       /auth/reset-password/{token} [post]
+// NOTE: test done
+func ResetPassword(ctx *gin.Context) {
+	token := ctx.Param("token")
+	if token == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing reset token"})
+		return
+	}
+	user, ok := ResetPasswordCache.Get(token)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+		return
+	}
+
+	var input resetPasswordRequest
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if err := user.SetPassword(input.Password); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set password"})
+		return
+	}
+	db := values.GetDB()
+	if err := db.Model(&user).Update("password", user.Password).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+	fmt.Println(user.Password) // TEST: remove
+	ResetPasswordCache.Delete(token)
+	LoginCache.Delete(user.Email)
+	ctx.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully"})
 }

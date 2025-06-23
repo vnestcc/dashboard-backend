@@ -42,6 +42,20 @@ definitions:
       error:
         type: string
     type: object
+  handlers.forgotPasswordRequest:
+    properties:
+      backup_code:
+        example: "123456789012"
+        type: string
+      email:
+        example: example@vnest.org
+        type: string
+      otp:
+        example: "112233"
+        type: string
+    required:
+    - email
+    type: object
   handlers.joinCompanyRequest:
     properties:
       secret_code:
@@ -70,6 +84,21 @@ definitions:
       year:
         example: 2025
         type: integer
+    type: object
+  handlers.resetPasswordRequest:
+    properties:
+      password:
+        example: MyNewStrongPassword
+        minLength: 8
+        type: string
+    required:
+    - password
+    type: object
+  handlers.resetTokenResponse:
+    properties:
+      reset_token:
+        example: abc123def456...
+        type: string
     type: object
   handlers.successResponse:
     properties:
@@ -128,6 +157,83 @@ info:
   title: VNEST Dashboard Swagger docs
   version: "1.0"
 paths:
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Request to reset password using either OTP or Backup Code. Only
+        one must be provided.
+      parameters:
+      - description: Forgot Password Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.forgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.resetTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: Forgot Password request
+      tags:
+      - auth
+  /auth/reset-password/{token}:
+    post:
+      consumes:
+      - application/json
+      description: Resets the user's password using the reset token issued after OTP/Backup
+        Code verification. The token must be valid and not expired.
+      parameters:
+      - description: Reset Token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: New Password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.resetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: Reset Password
+      tags:
+      - auth
   /auth/user/login:
     post:
       consumes:
@@ -964,36 +1070,7 @@ paths:
       summary: Health Check
       tags:
       - healthcheck
-  /users/backup-code:
-    get:
-      description: Returns the TOTP backup code for the authenticated user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get TOTP Backup Code
-      tags:
-      - user
-  /users/delete:
+  /users:
     delete:
       description: Deletes the current authenticated user
       produces:
@@ -1022,7 +1099,6 @@ paths:
       summary: Delete user account
       tags:
       - user
-  /users/edit:
     put:
       consumes:
       - application/json
@@ -1064,6 +1140,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Edit user profile
+      tags:
+      - user
+  /users/backup-code:
+    get:
+      description: Returns the TOTP backup code for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get TOTP Backup Code
       tags:
       - user
   /users/me:

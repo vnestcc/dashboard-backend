@@ -35,7 +35,7 @@ var UserCache = cacher.NewCacher[uint, models.User](&cacher.NewCacherOpts{
 // @Failure      400  {object} map[string]string
 // @Failure      401  {object} map[string]string
 // @Failure      500  {object} map[string]string
-// @Router       /users/edit [put]
+// @Router       /users [put]
 func EditUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
@@ -78,7 +78,8 @@ func EditUser(ctx *gin.Context) {
 // @Success      200  {object} map[string]string
 // @Failure      401  {object} map[string]string
 // @Failure      500  {object} map[string]string
-// @Router       /users/delete [delete]
+// @Router       /users [delete]
+// NOTE: testing done
 func DeleteUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
