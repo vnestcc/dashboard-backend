@@ -1,0 +1,41 @@
+name: Release Docker Image
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (without pushing)
+        run: |
+          docker build -t parrothacker1/vnest-dashboard:${{ github.ref_name }} .
+
+      - name: Save Docker image as tarball
+        run: |
+          docker save parrothacker1/vnest-dashboard:${{ github.ref_name }} -o image.tar
+
+      - name: Create GitHub Release (if not exists)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Docker image to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: image.tar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
