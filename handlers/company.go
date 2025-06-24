@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -54,6 +55,9 @@ func UserCompany(ctx *gin.Context) {
 		return
 	}
 	startup := user.StartUp
+	if _, ok := StartupCache.Get(startup.ID); !ok {
+		StartupCache.Set(startup.ID, *startup)
+	}
 	ctx.JSON(http.StatusOK, gin.H{
 		"id":            startup.ID,
 		"name":          startup.Name,
@@ -94,6 +98,7 @@ func ListQuater(ctx *gin.Context) {
 		company = cached
 	} else {
 		if err := db.First(&company, uint(companyID)).Error; err != nil {
+			ctx.Set("message", err.Error())
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Company not found"})
 				return
@@ -103,12 +108,11 @@ func ListQuater(ctx *gin.Context) {
 		}
 		StartupCache.Set(company.ID, company)
 	}
-	var quarters []models.Quarter
-	if err := db.Where("company_id = ?", company.ID).Find(&quarters).Error; err != nil {
+	if err := db.Model(&company).Association("Quarters").Find(&company.Quarters); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch quarters"})
 		return
 	}
-	ctx.JSON(http.StatusOK, quarters)
+	ctx.JSON(http.StatusOK, company.Quarters)
 }
 
 // ListCompany godoc
@@ -148,7 +152,7 @@ var QuarterCache = cacher.NewCacher[string, models.Quarter](&cacher.NewCacherOpt
 // @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
 // @Param        quarter  query  string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
 // @Param        year     query  int     false "Year"
-// @Success      200  {object}  map[string]interface{}
+// @Success      200  {object}  map[string]any
 // @Failure      400  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
@@ -164,9 +168,14 @@ func GetCompanyByID(ctx *gin.Context) {
 	}
 	companyID := uint(idUint)
 	var company models.Company
-	if err := db.Where("id = ?", companyID).Find(&company).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not find company"})
-		return
+	if value, ok := StartupCache.Get(companyID); ok {
+		company = value
+	} else {
+		if err := db.Where("id = ?", companyID).Find(&company).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not find company"})
+			return
+		}
+		StartupCache.Set(companyID, company)
 	}
 	dataVals := ctx.Request.URL.Query()["data"]
 	if len(dataVals) > 1 {
@@ -229,12 +238,22 @@ func GetCompanyByID(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
-	var user models.User
-	if err := db.First(&user, claims.ID).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+	var access sql.NullInt64
+	if err := db.Raw(`
+SELECT CASE 
+	WHEN ? = 'admin' OR startup_id = ? THEN 1 
+	ELSE 0 
+END 
+FROM users WHERE id = ?
+`, claims.Role, companyID, claims.ID).Scan(&access).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user access"})
 		return
 	}
-	full_access := (claims.Role == "admin") || (companyID == *user.StartupID)
+	if !access.Valid {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	full_access := access.Int64 == 1
 	switch data {
 	case "", "info":
 		ctx.JSON(http.StatusOK, gin.H{
@@ -491,19 +510,19 @@ func CreateCompany(ctx *gin.Context) {
 // GetCompanyByIDAdmin godoc
 // @Summary      Get company details (Admin)
 // @Description  Returns the specified company's information, including selectable related data sets (admin only).
-// @Tags         company
+// @Tags         admin
 // @Produce      json
 // @Param        id       path   int     true  "Company ID"
 // @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
 // @Param        quarter  query  string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
 // @Param        year     query  int     false "Year"
-// @Success      200  {object}  map[string]interface{}
+// @Success      200  {object}  map[string]any
 // @Failure      400  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /manage/company/{id} [get]
 func GetCompanyByIDAdmin(ctx *gin.Context) {
-
+	// dead function just a place holder for docs
 }
 
 // EditCompany godoc
@@ -1176,8 +1195,10 @@ func DeleteCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete company"})
 		return
 	}
-	if err := db.Model(&user).Update("startup_id", nil).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear company from user"})
+	if err := db.Model(&models.User{}).
+		Where("startup_id = ?", companyID).
+		Update("startup_id", nil).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear company from users"})
 		return
 	}
 	StartupCache.Delete(companyID)

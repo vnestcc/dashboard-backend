@@ -356,7 +356,6 @@ func ResetPassword(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
 		return
 	}
-	fmt.Println(user.Password) // TEST: remove
 	ResetPasswordCache.Delete(token)
 	LoginCache.Delete(user.Email)
 	ctx.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully"})

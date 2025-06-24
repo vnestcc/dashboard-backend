@@ -2,7 +2,7 @@
 host = "0.0.0.0"
 port = 8080
 production = false
-cors-url = "*"
+cors-url = ["*"]
 jwt-secret = "testing"
 token-expiry = 10
 totp-issuer = "V-NEST"

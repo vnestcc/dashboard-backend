@@ -7,13 +7,13 @@ import (
 )
 
 type ServerConfig struct {
-	Host        string `toml:"host"`
-	Port        int    `toml:"port"`
-	Prod        bool   `toml:"production"`
-	CORS        string `toml:"cors-url"`
-	JWTSecret   string `toml:"jwt-secret"`
-	TOTPIssuer  string `toml:"totp-issuer"`
-	TokenExpiry int    `toml:"token-expiry"`
+	Host        string   `toml:"host"`
+	Port        int      `toml:"port"`
+	Prod        bool     `toml:"production"`
+	CORS        []string `toml:"cors-url"`
+	JWTSecret   string   `toml:"jwt-secret"`
+	TOTPIssuer  string   `toml:"totp-issuer"`
+	TokenExpiry int      `toml:"token-expiry"`
 }
 
 type DBConfig struct {

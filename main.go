@@ -11,13 +11,10 @@ package main
 // @name Authorization
 // @description Type "Bearer" and your JWT token for authentication and authorization
 
-// TODO: TOTP implementation from ground up for forgot password
-// TODO: Every user gets a backup code for reseting password
 import (
 	"fmt"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron"
 	"github.com/vnestcc/dashboard/config"
@@ -52,16 +49,7 @@ func main() {
 	handlers.InitHandler(&cfg)
 	r := gin.New()
 	r.Use(middleware.Logger())
-	r.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return !cfg.Server.Prod || origin == cfg.Server.CORS
-		},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization", "Accept", "X-Requested-With"},
-		AllowCredentials: true,
-		MaxAge:           4 * time.Hour,
-	}))
-
+	r.Use(middleware.CORS(cfg.Server))
 	r.Use(gin.Recovery())
 	routers.LoadRoutes(r)
 	fmt.Printf("[ENGINE] Server started at %s:%d\n", cfg.Server.Host, cfg.Server.Port)
