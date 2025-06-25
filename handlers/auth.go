@@ -40,6 +40,12 @@ type userauthRequest struct {
 	Position string `json:"position" example:"founder"`
 }
 
+type vcauthRequest struct {
+	Name     string `json:"name" example:"someone"`
+	Email    string `json:"email" example:"example@vnest.org"`
+	Password string `json:"password" example:"superstrongpassword"`
+}
+
 type authRequest struct {
 	Email    string `json:"email" example:"example@vnest.org"`
 	Password string `json:"password" example:"superstrongpassword"`
@@ -67,12 +73,7 @@ type failedResponse struct {
 // NOTE: testing done
 func UserSignupHandler(ctx *gin.Context) {
 	var db = values.GetDB()
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Position string `json:"position"`
-		Name     string `json:"name"`
-	}
+	var input userauthRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
@@ -114,10 +115,7 @@ func UserSignupHandler(ctx *gin.Context) {
 // NOTE: testing done
 func UserLoginHandler(ctx *gin.Context) {
 	var db = values.GetDB()
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var input authRequest
 	var user models.User
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -156,7 +154,7 @@ func UserLoginHandler(ctx *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request  body    authRequest   true  "VC Signup Input"
+// @Param        request  body    vcauthRequest   true  "VC Signup Input"
 // @Success      200    {object}  successResponse
 // @Failure      400    {object}  failedResponse
 // @Failure      500    {object}  failedResponse
@@ -164,10 +162,7 @@ func UserLoginHandler(ctx *gin.Context) {
 // NOTE: testing done
 func VCSignupHandler(ctx *gin.Context) {
 	var db = values.GetDB()
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var input vcauthRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
@@ -200,10 +195,7 @@ func VCSignupHandler(ctx *gin.Context) {
 // NOTE: testing done
 func VCLoginHandler(ctx *gin.Context) {
 	var db = values.GetDB()
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var input authRequest
 	var user models.User
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
