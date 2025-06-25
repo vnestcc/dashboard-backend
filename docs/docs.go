@@ -299,7 +299,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.authRequest"
+                            "$ref": "#/definitions/handlers.vcauthRequest"
                         }
                     }
                 ],
@@ -1058,7 +1058,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "company"
+                    "admin"
                 ],
                 "summary": "Get company details (Admin)",
                 "parameters": [
@@ -1803,6 +1803,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "example@vnest.org"
                 },
+                "name": {
+                    "type": "string",
+                    "example": "someone"
+                },
                 "password": {
                     "type": "string",
                     "example": "superstrongpassword"
@@ -1831,6 +1835,23 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "someone"
+                }
+            }
+        },
+        "handlers.vcauthRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "example@vnest.org"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "someone"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "superstrongpassword"
                 }
             }
         }

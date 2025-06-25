@@ -292,7 +292,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.authRequest"
+                            "$ref": "#/definitions/handlers.vcauthRequest"
                         }
                     }
                 ],
@@ -1051,7 +1051,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "company"
+                    "admin"
                 ],
                 "summary": "Get company details (Admin)",
                 "parameters": [
@@ -1796,6 +1796,10 @@
                     "type": "string",
                     "example": "example@vnest.org"
                 },
+                "name": {
+                    "type": "string",
+                    "example": "someone"
+                },
                 "password": {
                     "type": "string",
                     "example": "superstrongpassword"
@@ -1824,6 +1828,23 @@
                 "name": {
                     "type": "string",
                     "example": "someone"
+                }
+            }
+        },
+        "handlers.vcauthRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "example@vnest.org"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "someone"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "superstrongpassword"
                 }
             }
         }

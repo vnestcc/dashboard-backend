@@ -129,6 +129,9 @@ definitions:
       email:
         example: example@vnest.org
         type: string
+      name:
+        example: someone
+        type: string
       password:
         example: superstrongpassword
         type: string
@@ -149,6 +152,18 @@ definitions:
         type: integer
       name:
         example: someone
+        type: string
+    type: object
+  handlers.vcauthRequest:
+    properties:
+      email:
+        example: example@vnest.org
+        type: string
+      name:
+        example: someone
+        type: string
+      password:
+        example: superstrongpassword
         type: string
     type: object
 info:
@@ -347,7 +362,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.authRequest'
+          $ref: '#/definitions/handlers.vcauthRequest'
       produces:
       - application/json
       responses:
@@ -802,7 +817,7 @@ paths:
             type: object
       summary: Get company details (Admin)
       tags:
-      - company
+      - admin
   /manage/company/delete/{id}:
     delete:
       description: Deletes a company by its ID (admin only)
