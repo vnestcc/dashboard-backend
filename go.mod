@@ -3,7 +3,7 @@ module github.com/vnestcc/dashboard
 go 1.24.3
 
 require (
-	github.com/AnimeKaizoku/cacher v1.0.2 // indirect
+	github.com/AnimeKaizoku/cacher v0.0.0-20250625022315-d7db13adab3b // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/PuerkitoBio/purell v1.2.1 // indirect
@@ -64,3 +64,5 @@ require (
 	gorm.io/driver/postgres v1.6.0 // indirect
 	gorm.io/gorm v1.30.0 // indirect
 )
+
+replace github.com/AnimeKaizoku/cacher => github.com/parrothacker1/cacher v0.0.0-20250625022315-d7db13adab3b

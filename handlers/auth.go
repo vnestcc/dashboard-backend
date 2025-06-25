@@ -17,6 +17,7 @@ import (
 var LoginCache = cacher.NewCacher[string, models.User](&cacher.NewCacherOpts{
 	TimeToLive:    time.Minute * 3,
 	CleanInterval: time.Hour * 1,
+	CleanerMode:   cacher.CleaningCentral,
 })
 
 func generateJWT(id uint, role string) (string, error) {
@@ -33,6 +34,7 @@ func generateJWT(id uint, role string) (string, error) {
 }
 
 type userauthRequest struct {
+	Name     string `json:"name" example:"someone"`
 	Email    string `json:"email" example:"example@vnest.org"`
 	Password string `json:"password" example:"superstrongpassword"`
 	Position string `json:"position" example:"founder"`
@@ -69,6 +71,7 @@ func UserSignupHandler(ctx *gin.Context) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 		Position string `json:"position"`
+		Name     string `json:"name"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -78,6 +81,7 @@ func UserSignupHandler(ctx *gin.Context) {
 		Email:    input.Email,
 		Password: input.Password,
 		Position: input.Position,
+		Name:     input.Name,
 		Role:     "user",
 	}
 	if err := db.Create(&user).Error; err != nil {

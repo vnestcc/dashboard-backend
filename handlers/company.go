@@ -21,6 +21,7 @@ var StartupCache = cacher.NewCacher[uint, models.Company](&cacher.NewCacherOpts{
 	TimeToLive:    2 * time.Minute,
 	CleanInterval: 1 * time.Hour,
 	Revaluate:     true,
+	CleanerMode:   cacher.CleaningCentral,
 })
 
 type Claims = middleware.Claims
@@ -172,7 +173,12 @@ func GetCompanyByID(ctx *gin.Context) {
 		company = value
 	} else {
 		if err := db.Where("id = ?", companyID).Find(&company).Error; err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not find company"})
+			ctx.Set("message", err.Error())
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrive company"})
+			}
 			return
 		}
 		StartupCache.Set(companyID, company)
@@ -215,19 +221,7 @@ func GetCompanyByID(ctx *gin.Context) {
 	}
 	year := uint(yearUint)
 	cacheKey := fmt.Sprintf("%d_%s_%d", companyID, quarter, year)
-	var quarterObj models.Quarter
-	cached, found := QuarterCache.Get(cacheKey)
-	if found {
-		quarterObj = cached
-	} else {
-		err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
-			First(&quarterObj).Error
-		if err != nil {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
-			return
-		}
-		QuarterCache.Set(cacheKey, quarterObj)
-	}
+	quarterObj, found := QuarterCache.Get(cacheKey)
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -264,17 +258,27 @@ FROM users WHERE id = ?
 		})
 	case "finance":
 		var financialHealths []models.FinancialHealth
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&financialHealths).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FinancialHealths"})
-			return
+		var quarter_id uint
+		if found {
+			err := db.Where("quarter_id = ?", quarterObj.ID).Find(&financialHealths).Error
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FinancialHealths"})
+				return
+			}
+			quarter_id = quarterObj.ID
+		} else {
+			err := db.Raw(`SELECT * FROM finance`).Scan(&financialHealths).Error
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FinancialHealths"})
+				return
+			}
 		}
 		var filtered []map[string]any
 		for i := range financialHealths {
 			filtered = append(filtered, financialHealths[i].VisibilityFilter(full_access))
 		}
 		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":        quarterObj.ID,
+			"quarter_id":        quarter_id,
 			"financial_healths": filtered,
 		})
 	case "market":

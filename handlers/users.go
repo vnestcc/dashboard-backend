@@ -21,6 +21,7 @@ var UserCache = cacher.NewCacher[uint, models.User](&cacher.NewCacherOpts{
 	Revaluate:     true,
 	CleanInterval: 1 * time.Hour,
 	TimeToLive:    3 * time.Minute,
+	CleanerMode:   cacher.CleaningCentral,
 })
 
 // EditUser godoc
@@ -36,6 +37,7 @@ var UserCache = cacher.NewCacher[uint, models.User](&cacher.NewCacherOpts{
 // @Failure      401  {object} map[string]string
 // @Failure      500  {object} map[string]string
 // @Router       /users [put]
+// NOTE: testing done
 func EditUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
@@ -43,7 +45,7 @@ func EditUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsAny.(Claims)
+	claims, ok := claimsAny.(*Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 		return
@@ -87,7 +89,7 @@ func DeleteUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsAny.(Claims)
+	claims, ok := claimsAny.(*Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 		return

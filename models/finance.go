@@ -35,6 +35,10 @@ type RevenueBreakdown struct {
 	Percentage        string
 }
 
+func (f *FinancialHealth) TableName() string {
+	return "finance"
+}
+
 func (f *FinancialHealth) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{

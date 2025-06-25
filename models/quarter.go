@@ -8,11 +8,11 @@ import (
 
 type Quarter struct {
 	gorm.Model
-	ID        uint `gorm:"primaryKey;autoIncrement;uniqueIndex:idx_quarter_comp"`
+	ID        uint `gorm:"primaryKey;autoIncrement"`
 	CompanyID uint `gorm:"not null;uniqueIndex:idx_quarter_comp"`
 	Date      time.Time
-	Quarter   string
-	Year      uint
+	Quarter   string `gorm:"not null;uniqueIndex:idx_quarter_comp"`
+	Year      uint   `gorm:"not null;uniqueIndex:idx_quarter_comp"`
 
 	Company                 Company                 `gorm:"foreignKey:CompanyID"`
 	FinancialHealths        []FinancialHealth       `gorm:"foreignKey:QuarterID,CompanyID;references:ID,CompanyID"`
