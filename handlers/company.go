@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -144,6 +145,222 @@ var QuarterCache = cacher.NewCacher[string, models.Quarter](&cacher.NewCacherOpt
 	Revaluate:     true,
 })
 
+func extractQuarterID(item any) uint {
+	val := reflect.ValueOf(item)
+	field := val.FieldByName("QuarterID")
+	if field.IsValid() && field.CanUint() {
+		return uint(field.Uint())
+	}
+	return 0
+}
+
+func respondWithErrorIfNeeded(ctx *gin.Context, err error, label string) bool {
+	if err == nil {
+		return false
+	}
+	ctx.Set("message", err.Error())
+	if err.Error() == "no elements exist" || errors.Is(err, gorm.ErrRecordNotFound) {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No %s found for the given quarter/year", label)})
+	} else {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not load %s", label)})
+	}
+	return true
+}
+
+func filterAndRespond[T any](ctx *gin.Context, data []T, quarterID uint, fullAccess bool) {
+	filtered := []map[string]any{}
+	for _, item := range data {
+		if f, ok := any(item).(interface {
+			VisibilityFilter(bool) map[string]any
+		}); ok {
+			filtered = append(filtered, f.VisibilityFilter(fullAccess))
+		}
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"quarter_id": quarterID,
+		"data":       filtered,
+	})
+}
+
+func queryByQuarterID[T any](db *gorm.DB, companyID uint, quarter string, year uint, tableName string) ([]T, uint, error) {
+	var results []T
+	query := fmt.Sprintf(`
+		SELECT * FROM %s
+		WHERE company_id = ?
+		AND quarter_id = (
+			SELECT id FROM quarters
+			WHERE company_id = ? AND quarter = ? AND year = ?
+			LIMIT 1
+		)
+	`, tableName)
+	err := db.Raw(query, companyID, companyID, quarter, year).Scan(&results).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(results) == 0 {
+		return results, 0, errors.New("no elements exist")
+	}
+	quarterID := extractQuarterID(results[0])
+	if quarterID == 0 {
+		return results, 0, errors.New("QuarterID not found")
+	}
+	return results, quarterID, nil
+}
+
+func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter string, year uint, tableName string, fullAccess bool) {
+	cacheKey := fmt.Sprintf("%d_%s_%d", companyID, quarter, year)
+	quarterObj, found := QuarterCache.Get(cacheKey)
+	var quarterID uint
+	var err error
+	switch tableName {
+	case "financial_healths":
+		var results []models.FinancialHealth
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.FinancialHealth](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "FinancialHealths") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "market_tractions":
+		var results []models.MarketTraction
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.MarketTraction](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "MarketTractions") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "unit_economics":
+		var results []models.UnitEconomics
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.UnitEconomics](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "UnitEconomics") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "team_performances":
+		var results []models.TeamPerformance
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.TeamPerformance](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "TeamPerformances") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "fundraising_statuses":
+		var results []models.FundraisingStatus
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.FundraisingStatus](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "FundraisingStatuses") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "competitive_landscapes":
+		var results []models.CompetitiveLandscape
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.CompetitiveLandscape](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "CompetitiveLandscapes") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "operational_efficiencies":
+		var results []models.OperationalEfficiency
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.OperationalEfficiency](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "OperationalEfficiencies") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "risk_managements":
+		var results []models.RiskManagement
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.RiskManagement](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "RiskManagements") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "additional_infos":
+		var results []models.AdditionalInfo
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.AdditionalInfo](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "AdditionalInfos") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "self_assessments":
+		var results []models.SelfAssessment
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.SelfAssessment](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "SelfAssessments") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	case "attachments":
+		var results []models.Attachment
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[models.Attachment](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "Attachments") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+
+	default:
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported data type"})
+	}
+}
+
 // GetCompanyByID godoc
 // @Summary      Get company details
 // @Description  Returns the current user's company information, including selectable related data sets
@@ -158,9 +375,9 @@ var QuarterCache = cacher.NewCacher[string, models.Quarter](&cacher.NewCacherOpt
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /company/{id} [get]
-// OPTIMIZE: there's too much object creations. Need fixing by hand written sql queries
+// TEST: testing
 func GetCompanyByID(ctx *gin.Context) {
-	var db = values.GetDB()
+	db := values.GetDB()
 	idStr := ctx.Param("id")
 	idUint, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -172,12 +389,11 @@ func GetCompanyByID(ctx *gin.Context) {
 	if value, ok := StartupCache.Get(companyID); ok {
 		company = value
 	} else {
-		if err := db.Where("id = ?", companyID).Find(&company).Error; err != nil {
-			ctx.Set("message", err.Error())
+		if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
 			} else {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrive company"})
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve company"})
 			}
 			return
 		}
@@ -196,17 +412,13 @@ func GetCompanyByID(ctx *gin.Context) {
 	yearStr := ctx.Query("year")
 	allowedData := map[string]string{
 		"info":          "",
-		"finance":       "FinancialHealths",
-		"market":        "MarketTractions",
-		"uniteconomics": "UnitEconomics",
-		"teamperf":      "TeamPerformances",
-		"fund":          "FundraisingStatuses",
-		"competitive":   "CompetitiveLandscapes",
-		"operation":     "OperationalEfficiencies",
-		"risk":          "RiskManagements",
-		"additional":    "AdditionalInfos",
-		"self":          "SelfAssessments",
-		"attachements":  "Attachments",
+		"finance":       "financial_healths",
+		"market":        "market_tractions",
+		"uniteconomics": "unit_economics",
+		"teamperf":      "team_performances",
+		"fund":          "fundraising_statuses",
+		"competitive":   "competitive_landscapes",
+		"operation":     "operational_efficiencies",
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {
@@ -214,14 +426,21 @@ func GetCompanyByID(ctx *gin.Context) {
 			return
 		}
 	}
+	if data == "" || data == "info" {
+		ctx.JSON(http.StatusOK, gin.H{
+			"company_id":            company.ID,
+			"company_name":          company.Name,
+			"company_contact_name":  company.ContactName,
+			"company_contact_email": company.ContactEmail,
+		})
+		return
+	}
 	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
 		return
 	}
 	year := uint(yearUint)
-	cacheKey := fmt.Sprintf("%d_%s_%d", companyID, quarter, year)
-	quarterObj, found := QuarterCache.Get(cacheKey)
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -233,207 +452,17 @@ func GetCompanyByID(ctx *gin.Context) {
 		return
 	}
 	var access sql.NullInt64
-	if err := db.Raw(`
-SELECT CASE 
-	WHEN ? = 'admin' OR startup_id = ? THEN 1 
-	ELSE 0 
-END 
-FROM users WHERE id = ?
-`, claims.Role, companyID, claims.ID).Scan(&access).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user access"})
+	err = db.Raw(`
+		SELECT CASE WHEN ? = 'admin' OR startup_id = ? THEN 1 ELSE 0 END 
+		FROM users WHERE id = ?
+	`, claims.Role, companyID, claims.ID).Scan(&access).Error
+	if err != nil || !access.Valid {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authorized or not found"})
 		return
 	}
-	if !access.Valid {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-	full_access := access.Int64 == 1
-	switch data {
-	case "", "info":
-		ctx.JSON(http.StatusOK, gin.H{
-			"company_id":            company.ID,
-			"company_name":          company.Name,
-			"company_contact_name":  company.ContactName,
-			"company_contact_email": company.ContactEmail,
-		})
-	case "finance":
-		var financialHealths []models.FinancialHealth
-		var quarter_id uint
-		if found {
-			err := db.Where("quarter_id = ?", quarterObj.ID).Find(&financialHealths).Error
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FinancialHealths"})
-				return
-			}
-			quarter_id = quarterObj.ID
-		} else {
-			err := db.Raw(`SELECT * FROM finance`).Scan(&financialHealths).Error
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FinancialHealths"})
-				return
-			}
-		}
-		var filtered []map[string]any
-		for i := range financialHealths {
-			filtered = append(filtered, financialHealths[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":        quarter_id,
-			"financial_healths": filtered,
-		})
-	case "market":
-		var marketTractions []models.MarketTraction
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&marketTractions).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load MarketTractions"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range marketTractions {
-			filtered = append(filtered, marketTractions[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":       quarterObj.ID,
-			"market_tractions": filtered,
-		})
-	case "uniteconomics":
-		var unitEconomics []models.UnitEconomics
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&unitEconomics).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load UnitEconomics"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range unitEconomics {
-			filtered = append(filtered, unitEconomics[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":     quarterObj.ID,
-			"unit_economics": filtered,
-		})
-	case "teamperf":
-		var teamPerformances []models.TeamPerformance
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&teamPerformances).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load TeamPerformances"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range teamPerformances {
-			filtered = append(filtered, teamPerformances[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":        quarterObj.ID,
-			"team_performances": filtered,
-		})
-	case "fund":
-		var fundraisingStatuses []models.FundraisingStatus
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&fundraisingStatuses).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load FundraisingStatuses"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range fundraisingStatuses {
-			filtered = append(filtered, fundraisingStatuses[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":           quarterObj.ID,
-			"fundraising_statuses": filtered,
-		})
-	case "competitive":
-		var competitiveLandscapes []models.CompetitiveLandscape
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&competitiveLandscapes).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load CompetitiveLandscapes"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range competitiveLandscapes {
-			filtered = append(filtered, competitiveLandscapes[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":             quarterObj.ID,
-			"competitive_landscapes": filtered,
-		})
-	case "operation":
-		var operationalEfficiencies []models.OperationalEfficiency
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&operationalEfficiencies).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load OperationalEfficiencies"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range operationalEfficiencies {
-			filtered = append(filtered, operationalEfficiencies[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":               quarterObj.ID,
-			"operational_efficiencies": filtered,
-		})
-	case "risk":
-		var riskManagements []models.RiskManagement
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&riskManagements).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load RiskManagements"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range riskManagements {
-			filtered = append(filtered, riskManagements[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":      quarterObj.ID,
-			"risk_management": filtered,
-		})
-	case "additional":
-		var additionalInfos []models.AdditionalInfo
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&additionalInfos).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load AdditionalInfos"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range additionalInfos {
-			filtered = append(filtered, additionalInfos[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":      quarterObj.ID,
-			"additional_info": filtered,
-		})
-	case "self":
-		var selfAssessments []models.SelfAssessment
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&selfAssessments).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load SelfAssessments"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range selfAssessments {
-			filtered = append(filtered, selfAssessments[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":      quarterObj.ID,
-			"self_assessment": filtered,
-		})
-	case "attachements":
-		var attachments []models.Attachment
-		err := db.Where("quarter_id = ?", quarterObj.ID).Find(&attachments).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not load Attachments"})
-			return
-		}
-		var filtered []map[string]any
-		for i := range attachments {
-			filtered = append(filtered, attachments[i].VisibilityFilter(full_access))
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"quarter_id":  quarterObj.ID,
-			"attachments": filtered,
-		})
-	default:
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
-	}
+	fullAccess := access.Int64 == 1
+	table := allowedData[data]
+	handleDataSection(ctx, db, companyID, quarter, year, table, fullAccess)
 }
 
 type createCompanyRequest struct {
