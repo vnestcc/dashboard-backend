@@ -28,6 +28,10 @@ type MarketTraction struct {
 	IsEditable int
 }
 
+func (m *MarketTraction) TableName() string {
+	return "market"
+}
+
 // VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.
 // Bit positions: 0 = NewCustomers, 1 = TotalCustomers, 2 = CustomerGrowth, 3 = RetentionRate, 4 = ChurnRate,
 // 5 = PipelineValue, 6 = ConversionRate, 7 = SalesCycle, 8 = SalesProcessChanges, 9 = MarketShare,

@@ -23,6 +23,10 @@ type CompetitiveLandscape struct {
 	IsEditable int `gorm:"default:63"`
 }
 
+func (c *CompetitiveLandscape) TableName() string {
+	return "competitive"
+}
+
 func (c *CompetitiveLandscape) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{

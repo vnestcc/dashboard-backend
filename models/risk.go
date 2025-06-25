@@ -24,6 +24,10 @@ type RiskManagement struct {
 	IsEditable int `gorm:"default:255"`
 }
 
+func (r *RiskManagement) TableName() string {
+	return "risk"
+}
+
 // Bit positions: 0 = RegulatoryChanges, 1 = ComplianceStatus, 2 = RegulatoryConcerns, 3 = SecurityAudits,
 // 4 = DataProtection, 5 = SecurityIncidents, 6 = KeyDependencies, 7 = ContingencyPlans
 func (r *RiskManagement) VisibilityFilter(fullAccess bool) map[string]any {

@@ -22,6 +22,10 @@ type OperationalEfficiency struct {
 	IsEditable int `gorm:"default:63"`
 }
 
+func (o *OperationalEfficiency) TableName() string {
+	return "operational"
+}
+
 // Bit positions: 0 = OperationalChanges, 1 = ImpactMetrics, 2 = OptimizationAreas, 3 = OperationalBottlenecks, 4 = InfrastructureCapacity, 5 = ScalingPlans
 func (o *OperationalEfficiency) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {

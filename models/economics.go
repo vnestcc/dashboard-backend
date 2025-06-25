@@ -33,6 +33,10 @@ type MarketingBreakdown struct {
 	CAC             string
 }
 
+func (u *UnitEconomics) TableName() string {
+	return "economics"
+}
+
 func (u *UnitEconomics) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{

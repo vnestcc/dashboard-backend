@@ -24,6 +24,10 @@ type AdditionalInfo struct {
 	IsEditable int `gorm:"default:255"`
 }
 
+func (a *AdditionalInfo) TableName() string {
+	return "additional"
+}
+
 func (a *AdditionalInfo) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{

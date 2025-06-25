@@ -23,6 +23,10 @@ type FundraisingStatus struct {
 	IsEditable int `gorm:"default:127"`
 }
 
+func (f *FundraisingStatus) TableName() string {
+	return "fund"
+}
+
 // VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.
 // Bit positions: 0 = LastRound, 1 = CurrentInvestors, 2 = InvestorRelations, 3 = NextRound,
 // 4 = TargetAmount, 5 = InvestorPipeline, 6 = ValuationExpectations

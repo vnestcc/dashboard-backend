@@ -54,6 +54,10 @@ type SelfAssessment struct {
 	IsEditable int `gorm:"default:255"`
 }
 
+func (s *SelfAssessment) TableName() string {
+	return "assessment"
+}
+
 func (s *SelfAssessment) BeforeSave(tx *gorm.DB) (err error) {
 	ratings := []struct {
 		value int

@@ -24,6 +24,10 @@ type TeamPerformance struct {
 	IsEditable int `gorm:"default:255"`
 }
 
+func (t *TeamPerformance) TableName() string {
+	return "teamperf"
+}
+
 // Bit positions: 0 = TeamSize, 1 = NewHires, 2 = Turnover, 3 = VacantPositions, 4 = LeadershipAlignment,
 // 5 = TeamStrengths, 6 = SkillGaps, 7 = DevelopmentInitiatives
 func (t *TeamPerformance) VisibilityFilter(fullAccess bool) map[string]any {
