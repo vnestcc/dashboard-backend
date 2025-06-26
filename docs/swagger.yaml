@@ -7,7 +7,11 @@ definitions:
         type: string
       password:
         example: superstrongpassword
+        minLength: 8
         type: string
+    required:
+    - email
+    - password
     type: object
   handlers.createCompanyRequest:
     properties:
@@ -124,6 +128,24 @@ definitions:
         example: CEO
         type: string
     type: object
+  handlers.userModel:
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_deleted:
+        example: false
+        type: boolean
+      name:
+        example: John Doe
+        type: string
+      startup_id:
+        example: 42
+        type: integer
+    type: object
   handlers.userauthRequest:
     properties:
       email:
@@ -134,10 +156,16 @@ definitions:
         type: string
       password:
         example: superstrongpassword
+        minLength: 8
         type: string
       position:
         example: founder
         type: string
+    required:
+    - email
+    - name
+    - password
+    - position
     type: object
   handlers.vcModel:
     properties:
@@ -164,7 +192,12 @@ definitions:
         type: string
       password:
         example: superstrongpassword
+        minLength: 8
         type: string
+    required:
+    - email
+    - name
+    - password
     type: object
 info:
   contact: {}
@@ -938,11 +971,86 @@ paths:
       summary: Edit company details (Admin, versioned insert)
       tags:
       - admin
+  /manage/company/list:
+    get:
+      description: Retrieves a list of all companies available in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all companies
+      tags:
+      - company
+  /manage/users:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all users with the "user" role
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.userModel'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all users
+      tags:
+      - admin
+  /manage/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a User by ID (hard delete)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a User
+      tags:
+      - admin
   /manage/vc/{id}:
     delete:
       consumes:
       - application/json
-      description: Deletes the VC from the database
+      description: Deletes the VC from the database by ID
       parameters:
       - description: VC ID
         in: path
@@ -1248,3 +1356,16 @@ securityDefinitions:
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Authentication and authorization endpoints for login, registration,
+    and token management.
+  name: auth
+- description: Endpoints for managing company data including creation, retrieval,
+    editing, and deletion.
+  name: company
+- description: Administrative operations such as managing VCs, users and companies
+  name: admin
+- description: System and service health endpoints to monitor the API status and uptime.
+  name: healthcheck
+- description: Endpoints for accessing and managing regular user data.
+  name: user

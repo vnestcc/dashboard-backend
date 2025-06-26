@@ -11,6 +11,21 @@ package main
 // @name Authorization
 // @description Type "Bearer" and your JWT token for authentication and authorization
 
+// @tag.name auth
+// @tag.description Authentication and authorization endpoints for login, registration, and token management.
+
+// @tag.name company
+// @tag.description Endpoints for managing company data including creation, retrieval, editing, and deletion.
+
+// @tag.name admin
+// @tag.description Administrative operations such as managing VCs, users and companies
+
+// @tag.name healthcheck
+// @tag.description System and service health endpoints to monitor the API status and uptime.
+
+// @tag.name user
+// @tag.description Endpoints for accessing and managing regular user data.
+
 import (
 	"fmt"
 	"time"

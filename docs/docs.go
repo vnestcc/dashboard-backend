@@ -1051,6 +1051,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/manage/company/list": {
+            "get": {
+                "description": "Retrieves a list of all companies available in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "company"
+                ],
+                "summary": "List all companies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/manage/company/{id}": {
             "get": {
                 "description": "Returns the specified company's information, including selectable related data sets (admin only).",
@@ -1140,6 +1163,101 @@ const docTemplate = `{
                 }
             }
         },
+        "/manage/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a list of all users with the \"user\" role",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get all users",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.userModel"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/manage/users/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a User by ID (hard delete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Delete a User",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.failedResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/manage/vc/list": {
             "get": {
                 "security": [
@@ -1184,7 +1302,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deletes the VC from the database",
+                "description": "Deletes the VC from the database by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -1620,6 +1738,10 @@ const docTemplate = `{
     "definitions": {
         "handlers.authRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
             "properties": {
                 "email": {
                     "type": "string",
@@ -1627,6 +1749,7 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string",
+                    "minLength": 8,
                     "example": "superstrongpassword"
                 }
             }
@@ -1796,8 +1919,39 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.userModel": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_deleted": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "startup_id": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
         "handlers.userauthRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password",
+                "position"
+            ],
             "properties": {
                 "email": {
                     "type": "string",
@@ -1809,6 +1963,7 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string",
+                    "minLength": 8,
                     "example": "superstrongpassword"
                 },
                 "position": {
@@ -1840,6 +1995,11 @@ const docTemplate = `{
         },
         "handlers.vcauthRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
             "properties": {
                 "email": {
                     "type": "string",
@@ -1851,6 +2011,7 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string",
+                    "minLength": 8,
                     "example": "superstrongpassword"
                 }
             }
@@ -1863,7 +2024,29 @@ const docTemplate = `{
             "name": "Authorization",
             "in": "header"
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "Authentication and authorization endpoints for login, registration, and token management.",
+            "name": "auth"
+        },
+        {
+            "description": "Endpoints for managing company data including creation, retrieval, editing, and deletion.",
+            "name": "company"
+        },
+        {
+            "description": "Administrative operations such as managing VCs, users and companies",
+            "name": "admin"
+        },
+        {
+            "description": "System and service health endpoints to monitor the API status and uptime.",
+            "name": "healthcheck"
+        },
+        {
+            "description": "Endpoints for accessing and managing regular user data.",
+            "name": "user"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it

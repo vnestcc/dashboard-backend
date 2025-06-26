@@ -34,21 +34,21 @@ func generateJWT(id uint, role string) (string, error) {
 }
 
 type userauthRequest struct {
-	Name     string `json:"name" example:"someone"`
-	Email    string `json:"email" example:"example@vnest.org"`
-	Password string `json:"password" example:"superstrongpassword"`
-	Position string `json:"position" example:"founder"`
+	Name     string `json:"name" example:"someone" binding:"required"`
+	Email    string `json:"email" example:"example@vnest.org" binding:"required,email"`
+	Password string `json:"password" example:"superstrongpassword" binding:"required,min=8"`
+	Position string `json:"position" example:"founder" binding:"required"`
 }
 
 type vcauthRequest struct {
-	Name     string `json:"name" example:"someone"`
-	Email    string `json:"email" example:"example@vnest.org"`
-	Password string `json:"password" example:"superstrongpassword"`
+	Name     string `json:"name" example:"someone" binding:"required"`
+	Email    string `json:"email" example:"example@vnest.org" binding:"required,email"`
+	Password string `json:"password" example:"superstrongpassword" binding:"required,min=8"`
 }
 
 type authRequest struct {
-	Email    string `json:"email" example:"example@vnest.org"`
-	Password string `json:"password" example:"superstrongpassword"`
+	Email    string `json:"email" example:"example@vnest.org" binding:"required,email"`
+	Password string `json:"password" example:"superstrongpassword" binding:"required,min=8"`
 }
 
 type successResponse struct {
@@ -143,6 +143,7 @@ func UserLoginHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
 		return
 	} else {
+		LoginCache.Delete(user.Email)
 		ctx.JSON(http.StatusOK, gin.H{"token": token})
 		return
 	}
@@ -228,6 +229,7 @@ func VCLoginHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
 		return
 	} else {
+		LoginCache.Delete(user.Email)
 		ctx.JSON(http.StatusOK, gin.H{"token": token})
 		return
 	}

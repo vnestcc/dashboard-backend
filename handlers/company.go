@@ -117,6 +117,17 @@ func ListQuater(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, company.Quarters)
 }
 
+// ListCompanyAdmin godoc
+// @Summary      List all companies
+// @Description  Retrieves a list of all companies available in the system
+// @Tags         company
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Router       /manage/company/list [get]
+func ListCompanyAdmin(ctx *gin.Context) {
+	// placeholder func
+}
+
 // ListCompany godoc
 // @Summary      List all companies
 // @Description  Retrieves a list of all companies available in the system
@@ -143,6 +154,7 @@ var QuarterCache = cacher.NewCacher[string, models.Quarter](&cacher.NewCacherOpt
 	TimeToLive:    3 * time.Minute,
 	CleanInterval: 1 * time.Hour,
 	Revaluate:     true,
+	CleanerMode:   cacher.CleaningLocal,
 })
 
 func extractQuarterID(item any) uint {
@@ -213,7 +225,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 	var quarterID uint
 	var err error
 	switch tableName {
-	case "financial_healths":
+	case "finance":
 		var results []models.FinancialHealth
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -226,7 +238,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "market_tractions":
+	case "market":
 		var results []models.MarketTraction
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -239,7 +251,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "unit_economics":
+	case "economics":
 		var results []models.UnitEconomics
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -252,7 +264,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "team_performances":
+	case "teamperf":
 		var results []models.TeamPerformance
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -265,7 +277,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "fundraising_statuses":
+	case "fund":
 		var results []models.FundraisingStatus
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -278,7 +290,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "competitive_landscapes":
+	case "competitive":
 		var results []models.CompetitiveLandscape
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -291,7 +303,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "operational_efficiencies":
+	case "operational":
 		var results []models.OperationalEfficiency
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -304,7 +316,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "risk_managements":
+	case "risk":
 		var results []models.RiskManagement
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -317,7 +329,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "additional_infos":
+	case "additional":
 		var results []models.AdditionalInfo
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -330,7 +342,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "self_assessments":
+	case "assessment":
 		var results []models.SelfAssessment
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -343,7 +355,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 
-	case "attachments":
+	case "attachment":
 		var results []models.Attachment
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
@@ -412,13 +424,17 @@ func GetCompanyByID(ctx *gin.Context) {
 	yearStr := ctx.Query("year")
 	allowedData := map[string]string{
 		"info":          "",
-		"finance":       "financial_healths",
-		"market":        "market_tractions",
-		"uniteconomics": "unit_economics",
-		"teamperf":      "team_performances",
-		"fund":          "fundraising_statuses",
-		"competitive":   "competitive_landscapes",
-		"operation":     "operational_efficiencies",
+		"finance":       "finance",
+		"market":        "market",
+		"uniteconomics": "economics",
+		"teamperf":      "teamperf",
+		"fund":          "fund",
+		"competitive":   "competitive",
+		"operation":     "operational",
+		"risk":          "risk",
+		"additional":    "additional",
+		"self":          "assessment",
+		"attachements":  "attachement",
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {
