@@ -125,7 +125,7 @@ func UserLoginHandler(ctx *gin.Context) {
 		ctx.Set("message", fmt.Sprintf("User %d loaded from cache", value.ID))
 		user = value
 	} else {
-		if err := db.Where("email = ? AND role != 'vc'", input.Email).First(&user).Error; err != nil {
+		if err := db.Where("email = ? AND role = 'user'", input.Email).First(&user).Error; err != nil {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		} else {
@@ -206,7 +206,7 @@ func VCLoginHandler(ctx *gin.Context) {
 		ctx.Set("message", fmt.Sprintf("User %d loaded from login cache", value.ID))
 		user = value
 	} else {
-		if err := db.Where("email = ? AND role != 'user'", input.Email).First(&user).Error; err != nil {
+		if err := db.Where("email = ? AND role = 'vc'", input.Email).First(&user).Error; err != nil {
 			ctx.Set("message", err.Error())
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
@@ -357,4 +357,50 @@ func ResetPassword(ctx *gin.Context) {
 	ResetPasswordCache.Delete(token)
 	LoginCache.Delete(user.Email)
 	ctx.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully"})
+}
+
+// AdminLoginHandler godoc
+// @Summary      Admin Login
+// @Description  Authenticates an admin user by email and password. Uses a cache lookup before querying the database. Returns a JWT token on success.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body    authRequest     true  "Admin Login Input"
+// @Success      200      {object}  successResponse
+// @Failure      400      {object}  failedResponse
+// @Failure      401      {object}  failedResponse
+// @Failure      500      {object}  failedResponse
+// @Router       /auth/admin/login [post]
+func AdminLoginHandler(ctx *gin.Context) {
+	db := values.GetDB()
+	var input authRequest
+	var user models.User
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if value, ok := LoginCache.Get(input.Email); ok {
+		ctx.Set("message", fmt.Sprintf("Admin %d loaded from cache", value.ID))
+		user = value
+	} else {
+		if err := db.Where("email = ? AND role = ?", input.Email, "admin").First(&user).Error; err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			return
+		}
+		ctx.Set("message", fmt.Sprintf("Admin %d added to login cache", user.ID))
+		LoginCache.Set(user.Email, user)
+	}
+	if err := user.ComparePassword(input.Password); err != nil {
+		ctx.Set("message", err.Error())
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+	token, err := generateJWT(user.ID, user.Role)
+	if err != nil {
+		ctx.Set("message", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create JWT"})
+		return
+	}
+	LoginCache.Delete(user.Email)
+	ctx.JSON(http.StatusOK, gin.H{"token": token})
 }

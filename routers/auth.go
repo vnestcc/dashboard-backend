@@ -12,6 +12,7 @@ func loadAuth(r *gin.RouterGroup) {
 
 	loadUserAuth(authRouter)
 	loadVCAuth(authRouter)
+	loadAdminAuth(authRouter)
 }
 
 func loadUserAuth(r *gin.RouterGroup) {
@@ -24,4 +25,9 @@ func loadVCAuth(r *gin.RouterGroup) {
 	authRouter := r.Group("/vc")
 	authRouter.POST("/signup", handlers.VCSignupHandler)
 	authRouter.POST("/login", handlers.VCLoginHandler)
+}
+
+func loadAdminAuth(r *gin.RouterGroup) {
+	authRouter := r.Group("/admin")
+	authRouter.POST("/login", handlers.AdminLoginHandler)
 }

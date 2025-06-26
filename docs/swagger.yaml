@@ -205,6 +205,41 @@ info:
   title: VNEST Dashboard Swagger docs
   version: "1.0"
 paths:
+  /auth/admin/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates an admin user by email and password. Uses a cache
+        lookup before querying the database. Returns a JWT token on success.
+      parameters:
+      - description: Admin Login Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.successResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.failedResponse'
+      summary: Admin Login
+      tags:
+      - auth
   /auth/forgot-password:
     post:
       consumes:
