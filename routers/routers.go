@@ -25,4 +25,5 @@ func LoadRoutes(r *gin.Engine) {
 	loadUser(apiRouter)
 
 	apiRouter.GET("/ping", handlers.PingHandler)
+	apiRouter.GET("/healthcheck", handlers.HealthcheckHandler)
 }

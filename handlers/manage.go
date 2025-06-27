@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils"
 	"github.com/vnestcc/dashboard/utils/values"
 )
 
@@ -28,8 +30,18 @@ type vcModel struct {
 // @Router       /manage/vc/list [get]
 func GetVCList(ctx *gin.Context) {
 	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "get_vc_list",
+	})
 	var vc []models.User
 	if err := db.Where("role = ?", "vc").Find(&vc).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_query_failed",
+			"error":  err.Error(),
+		}).Error("Failed to get the list of VCs")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get the list of VCs"})
 		return
 	}
@@ -42,6 +54,10 @@ func GetVCList(ctx *gin.Context) {
 			Approved: v.Approved,
 		})
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status":   "success",
+		"vc_count": len(result),
+	}).Info("Fetched VC list successfully")
 	ctx.JSON(http.StatusOK, result)
 }
 
@@ -60,21 +76,46 @@ func GetVCList(ctx *gin.Context) {
 // @Router       /manage/vc/{id}/approve [put]
 func ApproveVC(ctx *gin.Context) {
 	var db = values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "approve_vc",
+	})
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "invalid_id",
+			"id":     idParam,
+		}).Warn("Invalid VC ID format")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 	result := db.Model(&models.User{}).Where("id = ?", uint(id)).Update("approved", true)
 	if result.Error != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_update_failed",
+			"id":     id,
+			"error":  result.Error.Error(),
+		}).Error("Failed to approve VC")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve VC"})
 		return
 	}
 	if result.RowsAffected == 0 {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "user_not_found",
+			"id":     id,
+		}).Warn("User does not exist")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "User does not exist"})
 		return
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status": "success",
+		"id":     id,
+	}).Info("VC approved")
 	ctx.JSON(http.StatusOK, gin.H{"message": "VC approved"})
 }
 
@@ -93,23 +134,48 @@ func ApproveVC(ctx *gin.Context) {
 // @Router       /manage/vc/{id}/remove [put]
 func RemoveVC(ctx *gin.Context) {
 	var db = values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "remove_vc",
+	})
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "invalid_id",
+			"id":     idParam,
+		}).Warn("Invalid VC ID format")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
 	result := db.Model(&models.User{}).Where("id = ?", uint(id)).Update("approved", false)
 	if result.Error != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_update_failed",
+			"id":     id,
+			"error":  result.Error.Error(),
+		}).Error("Failed to remove VC approval")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove VC approval"})
 		return
 	}
 	if result.RowsAffected == 0 {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "user_not_found",
+			"id":     id,
+		}).Warn("User does not exist")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "User does not exist"})
 		return
 	}
 
+	auditLog.WithFields(logrus.Fields{
+		"status": "success",
+		"id":     id,
+	}).Info("VC approval removed")
 	ctx.JSON(http.StatusOK, gin.H{"message": "VC approval removed"})
 }
 
@@ -128,21 +194,46 @@ func RemoveVC(ctx *gin.Context) {
 // @Router       /manage/vc/{id} [delete]
 func DeleteVC(ctx *gin.Context) {
 	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "delete_vc",
+	})
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "invalid_id",
+			"id":     idParam,
+		}).Warn("Invalid VC ID format")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 	result := db.Unscoped().Where("id = ? AND role = ?", uint(id), "vc").Delete(&models.User{})
 	if result.Error != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_delete_failed",
+			"id":     id,
+			"error":  result.Error.Error(),
+		}).Error("Failed to delete VC")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete VC"})
 		return
 	}
 	if result.RowsAffected == 0 {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "vc_not_found",
+			"id":     id,
+		}).Warn("VC does not exist")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "VC does not exist"})
 		return
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status": "success",
+		"id":     id,
+	}).Info("VC deleted")
 	ctx.JSON(http.StatusOK, gin.H{"message": "VC deleted"})
 }
 
@@ -161,21 +252,46 @@ func DeleteVC(ctx *gin.Context) {
 // @Router       /manage/users/{id} [delete]
 func DeleteUserByID(ctx *gin.Context) {
 	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "delete_user",
+	})
 	idParam := ctx.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 64)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "invalid_id",
+			"id":     idParam,
+		}).Warn("Invalid user ID format")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 	result := db.Unscoped().Where("id = ? AND role = ?", uint(id), "user").Delete(&models.User{})
 	if result.Error != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_delete_failed",
+			"id":     id,
+			"error":  result.Error.Error(),
+		}).Error("Failed to delete user")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 	if result.RowsAffected == 0 {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "user_not_found",
+			"id":     id,
+		}).Warn("User does not exist")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "User does not exist"})
 		return
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status": "success",
+		"id":     id,
+	}).Info("User deleted")
 	ctx.JSON(http.StatusOK, gin.H{"message": "User deleted"})
 }
 
@@ -199,8 +315,18 @@ type userModel struct {
 // @Router       /manage/users [get]
 func GetUserList(ctx *gin.Context) {
 	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "get_user_list",
+	})
 	var users []models.User
 	if err := db.Where("role = ?", "user").Find(&users).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_query_failed",
+			"error":  err.Error(),
+		}).Error("Failed to get the list of Users")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get the list of Users"})
 		return
 	}
@@ -214,5 +340,9 @@ func GetUserList(ctx *gin.Context) {
 			IsDeleted: v.DeletedAt.Valid,
 		})
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status":     "success",
+		"user_count": len(result),
+	}).Info("Fetched user list successfully")
 	ctx.JSON(http.StatusOK, result)
 }

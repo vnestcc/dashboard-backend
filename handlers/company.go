@@ -12,7 +12,9 @@ import (
 
 	"github.com/AnimeKaizoku/cacher"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils"
 	middleware "github.com/vnestcc/dashboard/utils/middlewares"
 	"github.com/vnestcc/dashboard/utils/values"
 	"gorm.io/gorm"
@@ -37,22 +39,38 @@ type Claims = middleware.Claims
 // @Router       /company/me [get]
 func UserCompany(ctx *gin.Context) {
 	var db = values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "user_company",
+	})
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
+		auditLog.WithField("status", "failure").Warn("Unauthorized access: no claims in context")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok {
+		auditLog.WithField("status", "failure").Warn("Invalid claims format")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
 	var user models.User
 	if err := db.Preload("StartUp").First(&user, claims.ID).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":  "failure",
+			"user_id": claims.ID,
+			"error":   err.Error(),
+		}).Error("Failed to fetch user")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
 	if user.StartUp == nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":  "failure",
+			"user_id": claims.ID,
+		}).Warn("User does not belong to any company")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User does not belong to any company"})
 		return
 	}
@@ -60,6 +78,11 @@ func UserCompany(ctx *gin.Context) {
 	if _, ok := StartupCache.Get(startup.ID); !ok {
 		StartupCache.Set(startup.ID, *startup)
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status":     "success",
+		"user_id":    claims.ID,
+		"company_id": startup.ID,
+	}).Info("Fetched user's company")
 	ctx.JSON(http.StatusOK, gin.H{
 		"id":            startup.ID,
 		"name":          startup.Name,
@@ -89,9 +112,19 @@ type quarterResponse struct {
 // @Router       /company/quarters/{id} [get]
 func ListQuater(ctx *gin.Context) {
 	var db = values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "list_quarter",
+	})
 	idStr := ctx.Param("id")
 	companyID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "invalid_company_id",
+			"company_id": idStr,
+		}).Warn("Invalid company ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
 		return
 	}
@@ -100,6 +133,12 @@ func ListQuater(ctx *gin.Context) {
 		company = cached
 	} else {
 		if err := db.First(&company, uint(companyID)).Error; err != nil {
+			auditLog.WithFields(logrus.Fields{
+				"status":     "failure",
+				"reason":     "company_not_found",
+				"company_id": companyID,
+				"error":      err.Error(),
+			}).Warn("Company not found")
 			ctx.Set("message", err.Error())
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Company not found"})
@@ -111,9 +150,20 @@ func ListQuater(ctx *gin.Context) {
 		StartupCache.Set(company.ID, company)
 	}
 	if err := db.Model(&company).Association("Quarters").Find(&company.Quarters); err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "fetch_quarters_failed",
+			"company_id": company.ID,
+			"error":      err.Error(),
+		}).Error("Failed to fetch quarters")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch quarters"})
 		return
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status":     "success",
+		"company_id": company.ID,
+		"quarters":   len(company.Quarters),
+	}).Info("Fetched company quarters")
 	ctx.JSON(http.StatusOK, company.Quarters)
 }
 
@@ -137,9 +187,18 @@ func ListCompanyAdmin(ctx *gin.Context) {
 // @Router       /company/list [get]
 func ListCompany(ctx *gin.Context) {
 	var db = values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "list_company",
+	})
 	var companies []models.Company
 	result := make(map[uint]string)
 	if err := db.Find(&companies).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  err.Error(),
+		}).Error("Failed to retrieve the company list")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve the company list"})
 		return
 	}
@@ -147,6 +206,10 @@ func ListCompany(ctx *gin.Context) {
 		StartupCache.Set(companies[i].ID, companies[i])
 		result[companies[i].ID] = companies[i].Name
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status":        "success",
+		"company_count": len(result),
+	}).Info("Fetched company list")
 	ctx.JSON(http.StatusOK, result)
 }
 
@@ -167,19 +230,41 @@ func extractQuarterID(item any) uint {
 }
 
 func respondWithErrorIfNeeded(ctx *gin.Context, err error, label string) bool {
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "data_section_error",
+		"label": label,
+	})
 	if err == nil {
 		return false
 	}
 	ctx.Set("message", err.Error())
 	if err.Error() == "no elements exist" || errors.Is(err, gorm.ErrRecordNotFound) {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "not_found",
+			"error":  err.Error(),
+		}).Warn("No data found for label")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No %s found for the given quarter/year", label)})
 	} else {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_error",
+			"error":  err.Error(),
+		}).Error("Could not load data for label")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Could not load %s", label)})
 	}
 	return true
 }
 
 func filterAndRespond[T any](ctx *gin.Context, data []T, quarterID uint, fullAccess bool) {
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":         ctx.ClientIP(),
+		"type":       "audit",
+		"event":      "filter_and_respond",
+		"quarter_id": quarterID,
+	})
 	filtered := []map[string]any{}
 	for _, item := range data {
 		if f, ok := any(item).(interface {
@@ -188,6 +273,10 @@ func filterAndRespond[T any](ctx *gin.Context, data []T, quarterID uint, fullAcc
 			filtered = append(filtered, f.VisibilityFilter(fullAccess))
 		}
 	}
+	auditLog.WithFields(logrus.Fields{
+		"status":   "success",
+		"filtered": len(filtered),
+	}).Info("Responding with filtered data")
 	ctx.JSON(http.StatusOK, gin.H{
 		"quarter_id": quarterID,
 		"data":       filtered,
@@ -220,6 +309,15 @@ func queryByQuarterID[T any](db *gorm.DB, companyID uint, quarter string, year u
 }
 
 func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter string, year uint, tableName string, fullAccess bool) {
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":         ctx.ClientIP(),
+		"type":       "audit",
+		"event":      "handle_data_section",
+		"company_id": companyID,
+		"quarter":    quarter,
+		"year":       year,
+		"table":      tableName,
+	})
 	cacheKey := fmt.Sprintf("%d_%s_%d", companyID, quarter, year)
 	quarterObj, found := QuarterCache.Get(cacheKey)
 	var quarterID uint
@@ -237,7 +335,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "FinancialHealths"}).Info("Fetched FinancialHealth data")
 	case "market":
 		var results []models.MarketTraction
 		if found {
@@ -250,7 +348,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "MarketTractions"}).Info("Fetched MarketTraction data")
 	case "economics":
 		var results []models.UnitEconomics
 		if found {
@@ -263,7 +361,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "UnitEconomics"}).Info("Fetched UnitEconomics data")
 	case "teamperf":
 		var results []models.TeamPerformance
 		if found {
@@ -276,7 +374,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "TeamPerformances"}).Info("Fetched TeamPerformance data")
 	case "fund":
 		var results []models.FundraisingStatus
 		if found {
@@ -289,7 +387,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "FundraisingStatuses"}).Info("Fetched FundraisingStatus data")
 	case "competitive":
 		var results []models.CompetitiveLandscape
 		if found {
@@ -302,7 +400,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "CompetitiveLandscapes"}).Info("Fetched CompetitiveLandscape data")
 	case "operational":
 		var results []models.OperationalEfficiency
 		if found {
@@ -315,7 +413,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "OperationalEfficiencies"}).Info("Fetched OperationalEfficiency data")
 	case "risk":
 		var results []models.RiskManagement
 		if found {
@@ -328,7 +426,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "RiskManagements"}).Info("Fetched RiskManagement data")
 	case "additional":
 		var results []models.AdditionalInfo
 		if found {
@@ -341,7 +439,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "AdditionalInfos"}).Info("Fetched AdditionalInfo data")
 	case "assessment":
 		var results []models.SelfAssessment
 		if found {
@@ -354,7 +452,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "SelfAssessments"}).Info("Fetched SelfAssessment data")
 	case "attachment":
 		var results []models.Attachment
 		if found {
@@ -367,8 +465,13 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
-
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "Attachments"}).Info("Fetched Attachment data")
 	default:
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "unsupported_data_type",
+			"table":  tableName,
+		}).Warn("Unsupported data type")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported data type"})
 	}
 }
@@ -390,9 +493,19 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 // TEST: testing
 func GetCompanyByID(ctx *gin.Context) {
 	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "get_company_by_id",
+	})
 	idStr := ctx.Param("id")
 	idUint, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "invalid_company_id",
+			"company_id": idStr,
+		}).Warn("Invalid company ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
 		return
 	}
@@ -403,8 +516,19 @@ func GetCompanyByID(ctx *gin.Context) {
 	} else {
 		if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				auditLog.WithFields(logrus.Fields{
+					"status":     "failure",
+					"reason":     "company_not_found",
+					"company_id": companyID,
+				}).Warn("Company not found")
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
 			} else {
+				auditLog.WithFields(logrus.Fields{
+					"status":     "failure",
+					"reason":     "db_error",
+					"company_id": companyID,
+					"error":      err.Error(),
+				}).Error("Failed to retrieve company")
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve company"})
 			}
 			return
@@ -413,6 +537,10 @@ func GetCompanyByID(ctx *gin.Context) {
 	}
 	dataVals := ctx.Request.URL.Query()["data"]
 	if len(dataVals) > 1 {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "too_many_data_query_params",
+		}).Warn("Only one 'data' query parameter allowed")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only one 'data' query parameter allowed"})
 		return
 	}
@@ -438,11 +566,21 @@ func GetCompanyByID(ctx *gin.Context) {
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {
+			auditLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"reason": "invalid_data_param",
+				"data":   data,
+			}).Warn("Invalid data query parameter")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
 			return
 		}
 	}
 	if data == "" || data == "info" {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "success",
+			"company_id": company.ID,
+			"info_only":  true,
+		}).Info("Fetched company info")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id":            company.ID,
 			"company_name":          company.Name,
@@ -453,17 +591,30 @@ func GetCompanyByID(ctx *gin.Context) {
 	}
 	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "invalid_year",
+			"year":   yearStr,
+		}).Warn("Invalid year")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
 		return
 	}
 	year := uint(yearUint)
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "unauthorized",
+		}).Warn("Unauthorized")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "invalid_claims",
+		}).Warn("Invalid claims format")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
@@ -473,11 +624,26 @@ func GetCompanyByID(ctx *gin.Context) {
 		FROM users WHERE id = ?
 	`, claims.Role, companyID, claims.ID).Scan(&access).Error
 	if err != nil || !access.Valid {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "not_authorized_or_not_found",
+			"company_id": companyID,
+			"user_id":    claims.ID,
+		}).Warn("User not authorized or not found")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authorized or not found"})
 		return
 	}
 	fullAccess := access.Int64 == 1
 	table := allowedData[data]
+	auditLog.WithFields(logrus.Fields{
+		"status":      "success",
+		"company_id":  companyID,
+		"data":        data,
+		"quarter":     quarter,
+		"year":        year,
+		"full_access": fullAccess,
+		"user_id":     claims.ID,
+	}).Info("Fetching company data section")
 	handleDataSection(ctx, db, companyID, quarter, year, table, fullAccess)
 }
 
@@ -504,13 +670,24 @@ type createCompanyRequest struct {
 // @Router       /company/create [post]
 func CreateCompany(ctx *gin.Context) {
 	var db = values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "create_company",
+	})
+
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
+		auditLog.WithField("status", "failure").Warn("Unauthorized: no claims in context")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 	claims, ok := claimsVal.(*Claims)
 	if !ok || claims.Role == "admin" {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"role":   claims.Role,
+		}).Warn("Admins cannot create companies")
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "Admins cannot create companies"})
 		return
 	}
@@ -520,15 +697,30 @@ func CreateCompany(ctx *gin.Context) {
 		ContactEmail string `json:"contact_email" binding:"required,email"`
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":  "failure",
+			"reason":  "invalid_input",
+			"details": err.Error(),
+		}).Warn("Invalid input")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
 		return
 	}
 	var user models.User
 	if err := db.First(&user, claims.ID).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":  "failure",
+			"user_id": claims.ID,
+			"error":   err.Error(),
+		}).Error("Failed to fetch user")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
 	if user.StartupID != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":  "failure",
+			"user_id": user.ID,
+			"reason":  "already_in_company",
+		}).Warn("User already belongs to a company")
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "User already belongs to a company"})
 		return
 	}
@@ -539,17 +731,39 @@ func CreateCompany(ctx *gin.Context) {
 	}
 	if err := db.Create(&newCompany).Error; err != nil {
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "UNIQUE") {
+			auditLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"reason": "duplicate_email",
+				"email":  req.ContactEmail,
+				"error":  err.Error(),
+			}).Warn("Company with this contact email already exists")
 			ctx.JSON(http.StatusConflict, gin.H{"error": "Company with this contact email already exists"})
 			return
 		}
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"reason": "db_error",
+			"error":  err.Error(),
+		}).Error("Failed to create company")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create company"})
 		return
 	}
 	if err := db.Model(&user).Update("startup_id", newCompany.ID).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"user_id":    user.ID,
+			"company_id": newCompany.ID,
+			"error":      err.Error(),
+		}).Error("Failed to link company to user")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link company to user"})
 		return
 	}
 	StartupCache.Set(newCompany.ID, newCompany)
+	auditLog.WithFields(logrus.Fields{
+		"status":     "success",
+		"company_id": newCompany.ID,
+		"user_id":    user.ID,
+	}).Info("Company created and linked to user")
 	ctx.JSON(http.StatusCreated, gin.H{
 		"message":    "Company created successfully",
 		"company_id": newCompany.ID,
@@ -599,7 +813,7 @@ func EditCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
@@ -1225,7 +1439,7 @@ func DeleteCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
@@ -1337,7 +1551,7 @@ func JoinCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return

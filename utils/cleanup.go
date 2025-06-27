@@ -3,7 +3,6 @@ package utils
 import (
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/vnestcc/dashboard/models"
 	"github.com/vnestcc/dashboard/utils/values"
 )
@@ -13,5 +12,5 @@ func UserCleanUp() {
 	now := time.Now()
 	cutoff := now.Add(-6 * time.Hour)
 	db.Where("role = ? AND startup_id IS NULL AND created_at <= ?", "user", cutoff).Delete(&models.User{})
-	logrus.Trace("Scheduled cleanup ran at:", now.Format(time.RFC3339))
+	Logger.Trace("Scheduled cleanup ran at:", now.Format(time.RFC3339))
 }

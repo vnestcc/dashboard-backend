@@ -7,8 +7,10 @@ import (
 
 	"github.com/AnimeKaizoku/cacher"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"github.com/skip2/go-qrcode"
 	"github.com/vnestcc/dashboard/models"
+	"github.com/vnestcc/dashboard/utils"
 	"github.com/vnestcc/dashboard/utils/values"
 )
 
@@ -41,18 +43,38 @@ var UserCache = cacher.NewCacher[uint, models.User](&cacher.NewCacherOpts{
 func EditUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":   ctx.ClientIP(),
+		"type": "audit",
+	})
 	if !exists {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "edit_user_attempt",
+			"status": "failure",
+			"reason": "no_claims",
+		}).Warn("Unauthorized edit user attempt")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 	claims, ok := claimsAny.(*Claims)
 	if !ok {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "edit_user_attempt",
+			"status": "failure",
+			"reason": "invalid_claims",
+		}).Warn("Invalid token claims during edit user")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 		return
 	}
 	var req editUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.Set("message", err.Error())
+		auditLog.WithFields(logrus.Fields{
+			"event":   "edit_user_attempt",
+			"status":  "failure",
+			"reason":  "invalid_json",
+			"user_id": claims.ID,
+		}).Warn("Invalid request body in edit user")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
@@ -63,11 +85,23 @@ func EditUser(ctx *gin.Context) {
 			"position": req.Position,
 		}).Error; err != nil {
 		ctx.Set("message", err.Error())
+		auditLog.WithFields(logrus.Fields{
+			"event":   "edit_user_attempt",
+			"status":  "failure",
+			"reason":  "db_update_failed",
+			"user_id": claims.ID,
+			"error":   err.Error(),
+		}).Error("Failed to update user")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
 	UserCache.Delete(claims.ID)
 	ctx.Set("message", fmt.Sprintf("Deleted User %d from cache", claims.ID))
+	auditLog.WithFields(logrus.Fields{
+		"event":   "edit_user_attempt",
+		"status":  "success",
+		"user_id": claims.ID,
+	}).Info("User profile updated successfully")
 	ctx.JSON(http.StatusOK, gin.H{"message": "user updated successfully"})
 }
 
@@ -85,22 +119,48 @@ func EditUser(ctx *gin.Context) {
 func DeleteUser(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsAny, exists := ctx.Get("claims")
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":   ctx.ClientIP(),
+		"type": "audit",
+	})
 	if !exists {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "delete_user_attempt",
+			"status": "failure",
+			"reason": "no_claims",
+		}).Warn("Unauthorized delete user attempt")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 	claims, ok := claimsAny.(*Claims)
 	if !ok {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "delete_user_attempt",
+			"status": "failure",
+			"reason": "invalid_claims",
+		}).Warn("Invalid token claims during delete user")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 		return
 	}
 	if err := db.Delete(&models.User{}, claims.ID).Error; err != nil {
 		ctx.Set("message", err.Error())
+		auditLog.WithFields(logrus.Fields{
+			"event":   "delete_user_attempt",
+			"status":  "failure",
+			"reason":  "db_delete_failed",
+			"user_id": claims.ID,
+			"error":   err.Error(),
+		}).Error("Failed to delete user")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 	UserCache.Delete(claims.ID)
 	ctx.Set("message", fmt.Sprintf("Deleted User %d from cache", claims.ID))
+	auditLog.WithFields(logrus.Fields{
+		"event":   "delete_user_attempt",
+		"status":  "success",
+		"user_id": claims.ID,
+	}).Info("User account deleted successfully")
 	ctx.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
 }
 
@@ -126,12 +186,26 @@ type userMeResponse struct {
 func UserMe(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":   ctx.ClientIP(),
+		"type": "audit",
+	})
 	if !exists {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "user_me_attempt",
+			"status": "failure",
+			"reason": "no_claims",
+		}).Warn("Unauthorized user/me info attempt")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 	claims, ok := claimsVal.(*Claims)
 	if !ok {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "user_me_attempt",
+			"status": "failure",
+			"reason": "invalid_claims",
+		}).Warn("Invalid token claims during user/me info")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
@@ -142,6 +216,13 @@ func UserMe(ctx *gin.Context) {
 	} else {
 		if err := db.First(&user, claims.ID).Error; err != nil {
 			ctx.Set("message", err.Error())
+			auditLog.WithFields(logrus.Fields{
+				"event":   "user_me_attempt",
+				"status":  "failure",
+				"user_id": claims.ID,
+				"reason":  "db_fetch_failed",
+				"error":   err.Error(),
+			}).Error("Failed to fetch user")
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 			return
 		} else {
@@ -149,6 +230,12 @@ func UserMe(ctx *gin.Context) {
 			UserCache.Set(claims.ID, user)
 		}
 	}
+	auditLog.WithFields(logrus.Fields{
+		"event":   "user_me_attempt",
+		"status":  "success",
+		"user_id": user.ID,
+		"email":   user.Email,
+	}).Info("Fetched user info successfully")
 	ctx.JSON(http.StatusOK, userMeResponse{
 		ID:       user.ID,
 		Name:     user.Name,
@@ -172,12 +259,26 @@ func UserMe(ctx *gin.Context) {
 func UserTOTP(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":   ctx.ClientIP(),
+		"type": "audit",
+	})
 	if !exists {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "user_totp_attempt",
+			"status": "failure",
+			"reason": "no_claims",
+		}).Warn("Unauthorized TOTP QR attempt")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 	claims, ok := claimsVal.(*Claims)
 	if !ok {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "user_totp_attempt",
+			"status": "failure",
+			"reason": "invalid_claims",
+		}).Warn("Invalid token claims during user TOTP QR")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
@@ -188,6 +289,13 @@ func UserTOTP(ctx *gin.Context) {
 	} else {
 		if err := db.First(&user, claims.ID).Error; err != nil {
 			ctx.Set("message", err.Error())
+			auditLog.WithFields(logrus.Fields{
+				"event":   "user_totp_attempt",
+				"status":  "failure",
+				"user_id": claims.ID,
+				"reason":  "db_fetch_failed",
+				"error":   err.Error(),
+			}).Error("Failed to fetch user for TOTP QR")
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 			return
 		} else {
@@ -198,9 +306,22 @@ func UserTOTP(ctx *gin.Context) {
 	totp_url, _ := user.TOTPUrl()
 	png, err := qrcode.Encode(totp_url, qrcode.Medium, 256)
 	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"event":   "user_totp_attempt",
+			"status":  "failure",
+			"user_id": user.ID,
+			"reason":  "qrcode_failed",
+			"error":   err.Error(),
+		}).Error("Failed to generate QR code")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate QR code"})
 		return
 	}
+	auditLog.WithFields(logrus.Fields{
+		"event":   "user_totp_attempt",
+		"status":  "success",
+		"user_id": user.ID,
+		"email":   user.Email,
+	}).Info("TOTP QR code generated successfully")
 	ctx.Header("Content-Type", "image/png")
 	ctx.Writer.Write(png)
 }
@@ -219,12 +340,26 @@ func UserTOTP(ctx *gin.Context) {
 func UserBackupCode(ctx *gin.Context) {
 	var db = values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":   ctx.ClientIP(),
+		"type": "audit",
+	})
 	if !exists {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "user_backup_code_attempt",
+			"status": "failure",
+			"reason": "no_claims",
+		}).Warn("Unauthorized backup code attempt")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 	claims, ok := claimsVal.(*Claims)
 	if !ok {
+		auditLog.WithFields(logrus.Fields{
+			"event":  "user_backup_code_attempt",
+			"status": "failure",
+			"reason": "invalid_claims",
+		}).Warn("Invalid token claims during backup code")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims format"})
 		return
 	}
@@ -235,6 +370,13 @@ func UserBackupCode(ctx *gin.Context) {
 	} else {
 		if err := db.First(&user, claims.ID).Error; err != nil {
 			ctx.Set("message", err.Error())
+			auditLog.WithFields(logrus.Fields{
+				"event":   "user_backup_code_attempt",
+				"status":  "failure",
+				"user_id": claims.ID,
+				"reason":  "db_fetch_failed",
+				"error":   err.Error(),
+			}).Error("Failed to fetch user for backup code")
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 			return
 		} else {
@@ -242,5 +384,11 @@ func UserBackupCode(ctx *gin.Context) {
 			UserCache.Set(claims.ID, user)
 		}
 	}
+	auditLog.WithFields(logrus.Fields{
+		"event":   "user_backup_code_attempt",
+		"status":  "success",
+		"user_id": user.ID,
+		"email":   user.Email,
+	}).Info("Fetched backup code successfully")
 	ctx.JSON(http.StatusOK, gin.H{"backup_code": user.BackupCode})
 }

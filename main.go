@@ -67,6 +67,6 @@ func main() {
 	r.Use(middleware.CORS(cfg.Server))
 	r.Use(gin.Recovery())
 	routers.LoadRoutes(r)
-	fmt.Printf("[ENGINE] Server started at %s:%d\n", cfg.Server.Host, cfg.Server.Port)
+	utils.Logger.Printf("[ENGINE] Server started at %s:%d\n", cfg.Server.Host, cfg.Server.Port)
 	r.Run(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port))
 }
