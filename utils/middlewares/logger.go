@@ -15,6 +15,7 @@ func Logger() gin.HandlerFunc {
 		ctx.Next()
 		status := ctx.Writer.Status()
 		fields := logrus.Fields{
+			"type":     "http",
 			"status":   status,
 			"method":   ctx.Request.Method,
 			"path":     ctx.Request.URL.Path,

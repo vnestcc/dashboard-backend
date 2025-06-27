@@ -509,7 +509,7 @@ func CreateCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	claims, ok := claimsVal.(Claims)
+	claims, ok := claimsVal.(*Claims)
 	if !ok || claims.Role == "admin" {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "Admins cannot create companies"})
 		return

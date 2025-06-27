@@ -172,6 +172,7 @@ func VCSignupHandler(ctx *gin.Context) {
 		Email:    input.Email,
 		Password: input.Password,
 		Role:     "vc",
+		Name:     input.Name,
 	}
 	if err := db.Create(&user).Error; err != nil {
 		ctx.Set("message", err.Error())
