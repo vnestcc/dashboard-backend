@@ -402,7 +402,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.createCompanyRequest"
+                            "$ref": "#/definitions/company.createCompanyRequest"
                         }
                     }
                 ],
@@ -668,7 +668,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.joinCompanyRequest"
+                            "$ref": "#/definitions/company.joinCompanyRequest"
                         }
                     }
                 ],
@@ -781,6 +781,93 @@ const docTemplate = `{
                 }
             }
         },
+        "/company/quarters/add": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a new quarter record for the user's company",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "company"
+                ],
+                "summary": "Add a new quarter",
+                "parameters": [
+                    {
+                        "description": "Quarter details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/company.quarterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/company/quarters/{id}": {
             "get": {
                 "description": "Lists all quarters for the specified company",
@@ -806,7 +893,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.quarterResponse"
+                                "$ref": "#/definitions/company.quarterResponse"
                             }
                         }
                     },
@@ -924,6 +1011,32 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/healthcheck": {
+            "get": {
+                "description": "Responds with status and database connectivity check.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "healthcheck"
+                ],
+                "summary": "Health Check (DB)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.healthcheckResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.healthcheckResponse"
                         }
                     }
                 }
@@ -1788,25 +1901,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handlers.authRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "example": "example@vnest.org"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 8,
-                    "example": "superstrongpassword"
-                }
-            }
-        },
-        "handlers.createCompanyRequest": {
+        "company.createCompanyRequest": {
             "type": "object",
             "required": [
                 "contact_email",
@@ -1825,6 +1920,74 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Acme Inc"
+                }
+            }
+        },
+        "company.joinCompanyRequest": {
+            "type": "object",
+            "required": [
+                "secret_code"
+            ],
+            "properties": {
+                "secret_code": {
+                    "type": "string",
+                    "example": "random hex"
+                }
+            }
+        },
+        "company.quarterRequest": {
+            "type": "object",
+            "required": [
+                "quarter",
+                "year"
+            ],
+            "properties": {
+                "quarter": {
+                    "type": "string",
+                    "example": "Q1"
+                },
+                "year": {
+                    "type": "integer",
+                    "example": 2024
+                }
+            }
+        },
+        "company.quarterResponse": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string",
+                    "example": "2025-04-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "quarter": {
+                    "type": "string",
+                    "example": "Q1"
+                },
+                "year": {
+                    "type": "integer",
+                    "example": 2025
+                }
+            }
+        },
+        "handlers.authRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "example@vnest.org"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "superstrongpassword"
                 }
             }
         },
@@ -1873,15 +2036,16 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.joinCompanyRequest": {
+        "handlers.healthcheckResponse": {
             "type": "object",
-            "required": [
-                "secret_code"
-            ],
             "properties": {
-                "secret_code": {
+                "database": {
                     "type": "string",
-                    "example": "random hex"
+                    "example": "ok"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
                 }
             }
         },
@@ -1891,27 +2055,6 @@ const docTemplate = `{
                 "msg": {
                     "type": "string",
                     "example": "pong"
-                }
-            }
-        },
-        "handlers.quarterResponse": {
-            "type": "object",
-            "properties": {
-                "date": {
-                    "type": "string",
-                    "example": "2025-04-01T00:00:00Z"
-                },
-                "id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "quarter": {
-                    "type": "string",
-                    "example": "Q1"
-                },
-                "year": {
-                    "type": "integer",
-                    "example": 2025
                 }
             }
         },

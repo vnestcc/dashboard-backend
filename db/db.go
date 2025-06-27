@@ -57,6 +57,7 @@ func InitDB(cfg *config.Config) {
 		&models.OperationalEfficiency{},
 		&models.RiskManagement{},
 		&models.AdditionalInfo{},
+		&models.ProductDevelopment{},
 		&models.SelfAssessment{},
 		&models.Attachment{},
 	)

@@ -6,7 +6,10 @@ import (
 	"github.com/AnimeKaizoku/cacher"
 	"github.com/vnestcc/dashboard/config"
 	"github.com/vnestcc/dashboard/models"
+	middleware "github.com/vnestcc/dashboard/utils/middlewares"
 )
+
+type Claims = middleware.Claims
 
 var ResetPasswordCache *cacher.Cacher[string, models.User]
 

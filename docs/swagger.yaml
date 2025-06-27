@@ -1,19 +1,6 @@
 basePath: /api
 definitions:
-  handlers.authRequest:
-    properties:
-      email:
-        example: example@vnest.org
-        type: string
-      password:
-        example: superstrongpassword
-        minLength: 8
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  handlers.createCompanyRequest:
+  company.createCompanyRequest:
     properties:
       contact_email:
         example: john@acme.com
@@ -28,6 +15,54 @@ definitions:
     - contact_email
     - contact_name
     - name
+    type: object
+  company.joinCompanyRequest:
+    properties:
+      secret_code:
+        example: random hex
+        type: string
+    required:
+    - secret_code
+    type: object
+  company.quarterRequest:
+    properties:
+      quarter:
+        example: Q1
+        type: string
+      year:
+        example: 2024
+        type: integer
+    required:
+    - quarter
+    - year
+    type: object
+  company.quarterResponse:
+    properties:
+      date:
+        example: "2025-04-01T00:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      quarter:
+        example: Q1
+        type: string
+      year:
+        example: 2025
+        type: integer
+    type: object
+  handlers.authRequest:
+    properties:
+      email:
+        example: example@vnest.org
+        type: string
+      password:
+        example: superstrongpassword
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
     type: object
   handlers.editUserRequest:
     properties:
@@ -60,34 +95,20 @@ definitions:
     required:
     - email
     type: object
-  handlers.joinCompanyRequest:
+  handlers.healthcheckResponse:
     properties:
-      secret_code:
-        example: random hex
+      database:
+        example: ok
         type: string
-    required:
-    - secret_code
+      status:
+        example: ok
+        type: string
     type: object
   handlers.pongResponse:
     properties:
       msg:
         example: pong
         type: string
-    type: object
-  handlers.quarterResponse:
-    properties:
-      date:
-        example: "2025-04-01T00:00:00Z"
-        type: string
-      id:
-        example: 1
-        type: integer
-      quarter:
-        example: Q1
-        type: string
-      year:
-        example: 2025
-        type: integer
     type: object
   handlers.resetPasswordRequest:
     properties:
@@ -524,7 +545,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handlers.createCompanyRequest'
+          $ref: '#/definitions/company.createCompanyRequest'
       produces:
       - application/json
       responses:
@@ -706,7 +727,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handlers.joinCompanyRequest'
+          $ref: '#/definitions/company.joinCompanyRequest'
       produces:
       - application/json
       responses:
@@ -799,7 +820,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/handlers.quarterResponse'
+              $ref: '#/definitions/company.quarterResponse'
             type: array
         "400":
           description: Bad Request
@@ -822,6 +843,79 @@ paths:
       summary: List quarters by company
       tags:
       - company
+  /company/quarters/add:
+    post:
+      consumes:
+      - application/json
+      description: Adds a new quarter record for the user's company
+      parameters:
+      - description: Quarter details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/company.quarterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add a new quarter
+      tags:
+      - company
+  /healthcheck:
+    get:
+      description: Responds with status and database connectivity check.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.healthcheckResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.healthcheckResponse'
+      summary: Health Check (DB)
+      tags:
+      - healthcheck
   /manage/company/{id}:
     get:
       description: Returns the specified company's information, including selectable
