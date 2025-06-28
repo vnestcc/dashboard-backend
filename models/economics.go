@@ -8,29 +8,52 @@ import (
 
 type UnitEconomics struct {
 	gorm.Model
-	CompanyID  uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID  uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version    uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	CAC        string
-	CACChange  string
-	LTV        string
-	LTVRatio   string
-	CACPayback string
-	ARPU       string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	MarketingBreakdowns []MarketingBreakdown
+	CAC        string `json:"cac"`
+	CACChange  string `json:"cac_change"`
+	LTV        string `json:"ltv"`
+	LTVRatio   string `json:"ltv_ratio"`
+	CACPayback string `json:"cac_payback"`
+	ARPU       string `json:"arpu"`
 
-	IsVisible  uint8 `gorm:"default:127"`
-	IsEditable uint8 `gorm:"default:127"`
+	MarketingBreakdowns []MarketingBreakdown `json:"marketing_breakdowns"`
+
+	IsVisible  uint8 `gorm:"default:127" json:"-"`
+	IsEditable uint8 `gorm:"default:127" json:"-"`
 }
 
 type MarketingBreakdown struct {
 	gorm.Model
-	UnitEconomicsID uint
-	Channel         string
-	Spend           string
-	Budget          string
-	CAC             string
+	UnitEconomicsID uint   `json:"-"`
+	Channel         string `json:"channel"`
+	Spend           string `json:"spend"`
+	Budget          string `json:"budget"`
+	CAC             string `json:"cac"`
+}
+
+func (u *UnitEconomics) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"CAC",
+		"CACChange",
+		"LTV",
+		"LTVRatio",
+		"CACPayback",
+		"ARPU",
+		"MarketingBreakdowns",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if u.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 func (u *UnitEconomics) TableName() string {

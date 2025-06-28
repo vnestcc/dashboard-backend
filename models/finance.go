@@ -8,9 +8,10 @@ import (
 
 type FinancialHealth struct {
 	gorm.Model
-	CompanyID             uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID             uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version               uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+
 	CashBalance           string `json:"cash_balance"`
 	BurnRate              string `json:"burn_rate"`
 	CashRunway            string `json:"cash_runway"`
@@ -37,6 +38,31 @@ type RevenueBreakdown struct {
 
 func (f *FinancialHealth) TableName() string {
 	return "finance"
+}
+
+func (f *FinancialHealth) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"CashBalance",
+		"BurnRate",
+		"CashRunway",
+		"BurnRateChange",
+		"QuarterlyRevenue",
+		"RevenueGrowth",
+		"GrossMargin",
+		"NetMargin",
+		"ProfitabilityTimeline",
+		"RevenueBreakdowns",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if f.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 func (f *FinancialHealth) VisibilityFilter(fullAccess bool) map[string]any {

@@ -8,22 +8,44 @@ import (
 
 type OperationalEfficiency struct {
 	gorm.Model
-	CompanyID              uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID              uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version                uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	OperationalChanges     string
-	ImpactMetrics          string
-	OptimizationAreas      string
-	OperationalBottlenecks string
-	InfrastructureCapacity string
-	ScalingPlans           string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint8 `gorm:"default:63"`
-	IsEditable uint8 `gorm:"default:63"`
+	OperationalChanges     string `json:"operational_changes"`
+	ImpactMetrics          string `json:"impact_metrics"`
+	OptimizationAreas      string `json:"optimization_areas"`
+	OperationalBottlenecks string `json:"operational_bottlenecks"`
+	InfrastructureCapacity string `json:"infrastructure_capacity"`
+	ScalingPlans           string `json:"scaling_plans"`
+
+	IsVisible  uint8 `gorm:"default:63" json:"-"`
+	IsEditable uint8 `gorm:"default:63" json:"-"`
 }
 
 func (o *OperationalEfficiency) TableName() string {
 	return "operational"
+}
+
+func (o *OperationalEfficiency) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"OperationalChanges",
+		"ImpactMetrics",
+		"OptimizationAreas",
+		"OperationalBottlenecks",
+		"InfrastructureCapacity",
+		"ScalingPlans",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if o.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 // Bit positions: 0 = OperationalChanges, 1 = ImpactMetrics, 2 = OptimizationAreas, 3 = OperationalBottlenecks, 4 = InfrastructureCapacity, 5 = ScalingPlans

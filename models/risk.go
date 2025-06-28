@@ -8,24 +8,48 @@ import (
 
 type RiskManagement struct {
 	gorm.Model
-	CompanyID          uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID          uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version            uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	RegulatoryChanges  string
-	ComplianceStatus   string
-	RegulatoryConcerns string
-	SecurityAudits     string
-	DataProtection     string
-	SecurityIncidents  string
-	KeyDependencies    string
-	ContingencyPlans   string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint8 `gorm:"default:255"`
-	IsEditable uint8 `gorm:"default:255"`
+	RegulatoryChanges  string `json:"regulatory_changes"`
+	ComplianceStatus   string `json:"compliance_status"`
+	RegulatoryConcerns string `json:"regulatory_concerns"`
+	SecurityAudits     string `json:"security_audits"`
+	DataProtection     string `json:"data_protection"`
+	SecurityIncidents  string `json:"security_incidents"`
+	KeyDependencies    string `json:"key_dependencies"`
+	ContingencyPlans   string `json:"contingency_plans"`
+
+	IsVisible  uint8 `gorm:"default:255" json:"-"`
+	IsEditable uint8 `gorm:"default:255" json:"-"`
 }
 
 func (r *RiskManagement) TableName() string {
 	return "risk"
+}
+
+func (r *RiskManagement) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"RegulatoryChanges",
+		"ComplianceStatus",
+		"RegulatoryConcerns",
+		"SecurityAudits",
+		"DataProtection",
+		"SecurityIncidents",
+		"KeyDependencies",
+		"ContingencyPlans",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if r.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 // Bit positions: 0 = RegulatoryChanges, 1 = ComplianceStatus, 2 = RegulatoryConcerns, 3 = SecurityAudits,

@@ -38,24 +38,48 @@ func (p *Priorities) Scan(value any) error {
 
 type SelfAssessment struct {
 	gorm.Model
-	CompanyID         uint       `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID         uint       `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version           uint32     `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	FinancialRating   int        // 1-10 bit 0
-	MarketRating      int        // 1-10
-	ProductRating     int        // 1-10
-	TeamRating        int        // 1-10
-	OperationalRating int        // 1-10
-	OverallRating     int        // 1-10
-	Priorities        Priorities `gorm:"type:text"`
-	IncubatorSupport  string     // bit 7
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint8 `gorm:"default:255"`
-	IsEditable uint8 `gorm:"default:255"`
+	FinancialRating   int        `json:"financial_rating"`   // 1-10 bit 0
+	MarketRating      int        `json:"market_rating"`      // 1-10
+	ProductRating     int        `json:"product_rating"`     // 1-10
+	TeamRating        int        `json:"team_rating"`        // 1-10
+	OperationalRating int        `json:"operational_rating"` // 1-10
+	OverallRating     int        `json:"overall_rating"`     // 1-10
+	Priorities        Priorities `gorm:"type:text" json:"priorities"`
+	IncubatorSupport  string     `json:"incubator_support"` // bit 7
+
+	IsVisible  uint8 `gorm:"default:255" json:"-"`
+	IsEditable uint8 `gorm:"default:255" json:"-"` // usually hidden from response
 }
 
 func (s *SelfAssessment) TableName() string {
 	return "assessment"
+}
+
+func (s *SelfAssessment) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"FinancialRating",
+		"MarketRating",
+		"ProductRating",
+		"TeamRating",
+		"OperationalRating",
+		"OverallRating",
+		"Priorities",
+		"IncubatorSupport",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if s.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 func (s *SelfAssessment) BeforeSave(tx *gorm.DB) (err error) {

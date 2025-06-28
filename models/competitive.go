@@ -12,19 +12,40 @@ type CompetitiveLandscape struct {
 	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	NewCompetitors       string
-	CompetitorStrategies string
-	MarketShifts         string
-	Differentiators      string
-	Threats              string
-	DefensiveStrategies  string
+	NewCompetitors       string `json:"new_competitors"`
+	CompetitorStrategies string `json:"competitor_strategies"`
+	MarketShifts         string `json:"market_shifts"`
+	Differentiators      string `json:"differentiators"`
+	Threats              string `json:"threats"`
+	DefensiveStrategies  string `json:"defensive_strategies"`
 
-	IsVisible  uint8 `gorm:"default:63"`
-	IsEditable uint8 `gorm:"default:63"`
+	IsVisible  uint8 `gorm:"default:63" json:"-"`
+	IsEditable uint8 `gorm:"default:63" json:"-"`
 }
 
 func (c *CompetitiveLandscape) TableName() string {
 	return "competitive"
+}
+
+func (c *CompetitiveLandscape) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"NewCompetitors",
+		"CompetitorStrategies",
+		"MarketShifts",
+		"Differentiators",
+		"Threats",
+		"DefensiveStrategies",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if c.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 func (c *CompetitiveLandscape) VisibilityFilter(fullAccess bool) map[string]any {

@@ -8,28 +8,56 @@ import (
 
 type MarketTraction struct {
 	gorm.Model
-	CompanyID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version             uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	NewCustomers        string
-	TotalCustomers      string
-	CustomerGrowth      string
-	RetentionRate       string
-	ChurnRate           string
-	PipelineValue       string
-	ConversionRate      string
-	SalesCycle          string
-	SalesProcessChanges string
-	MarketShare         string
-	MarketShareChange   string
-	MarketTrends        string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint16 `gorm:"default:2047"`
-	IsEditable uint16 `gorm:"default:2047"`
+	NewCustomers        string `json:"new_customers"`
+	TotalCustomers      string `json:"total_customers"`
+	CustomerGrowth      string `json:"customer_growth"`
+	RetentionRate       string `json:"retention_rate"`
+	ChurnRate           string `json:"churn_rate"`
+	PipelineValue       string `json:"pipeline_value"`
+	ConversionRate      string `json:"conversion_rate"`
+	SalesCycle          string `json:"sales_cycle"`
+	SalesProcessChanges string `json:"sales_process_changes"`
+	MarketShare         string `json:"market_share"`
+	MarketShareChange   string `json:"market_share_change"`
+	MarketTrends        string `json:"market_trends"`
+
+	IsVisible  uint16 `gorm:"default:2047" json:"-"`
+	IsEditable uint16 `gorm:"default:2047" json:"-"`
 }
 
 func (m *MarketTraction) TableName() string {
 	return "market"
+}
+
+func (m *MarketTraction) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"NewCustomers",
+		"TotalCustomers",
+		"CustomerGrowth",
+		"RetentionRate",
+		"ChurnRate",
+		"PipelineValue",
+		"ConversionRate",
+		"SalesCycle",
+		"SalesProcessChanges",
+		"MarketShare",
+		"MarketShareChange",
+		"MarketTrends",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if m.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 // VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.

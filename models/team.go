@@ -8,24 +8,48 @@ import (
 
 type TeamPerformance struct {
 	gorm.Model
-	CompanyID              uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID              uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version                uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	TeamSize               string
-	NewHires               string
-	Turnover               string
-	VacantPositions        string
-	LeadershipAlignment    string
-	TeamStrengths          string
-	SkillGaps              string
-	DevelopmentInitiatives string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint8 `gorm:"default:255"`
-	IsEditable uint8 `gorm:"default:255"`
+	TeamSize               string `json:"team_size"`
+	NewHires               string `json:"new_hires"`
+	Turnover               string `json:"turnover"`
+	VacantPositions        string `json:"vacant_positions"`
+	LeadershipAlignment    string `json:"leadership_alignment"`
+	TeamStrengths          string `json:"team_strengths"`
+	SkillGaps              string `json:"skill_gaps"`
+	DevelopmentInitiatives string `json:"development_initiatives"`
+
+	IsVisible  uint8 `gorm:"default:255" json:"-"`
+	IsEditable uint8 `gorm:"default:255" json:"-"`
 }
 
 func (t *TeamPerformance) TableName() string {
 	return "teamperf"
+}
+
+func (t *TeamPerformance) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"TeamSize",
+		"NewHires",
+		"Turnover",
+		"VacantPositions",
+		"LeadershipAlignment",
+		"TeamStrengths",
+		"SkillGaps",
+		"DevelopmentInitiatives",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if t.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 // Bit positions: 0 = TeamSize, 1 = NewHires, 2 = Turnover, 3 = VacantPositions, 4 = LeadershipAlignment,

@@ -8,17 +8,38 @@ import (
 
 type Attachment struct {
 	gorm.Model
-	CompanyID            uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID            uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version              uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	FinancialStatements  string // bit 0
-	PitchDeck            string // bit 1
-	ProductRoadmap       string
-	PerformanceDashboard string
-	OrgChart             string // bit 4
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint8 `gorm:"default:31"`
-	IsEditable uint8 `gorm:"default:31"`
+	FinancialStatements  string `json:"financial_statements"` // bit 0
+	PitchDeck            string `json:"pitch_deck"`           // bit 1
+	ProductRoadmap       string `json:"product_roadmap"`
+	PerformanceDashboard string `json:"performance_dashboard"`
+	OrgChart             string `json:"org_chart"` // bit 4
+
+	IsVisible  uint8 `gorm:"default:31" json:"-"`
+	IsEditable uint8 `gorm:"default:31" json:"-"`
+}
+
+func (a *Attachment) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"FinancialStatements",
+		"PitchDeck",
+		"ProductRoadmap",
+		"PerformanceDashboard",
+		"OrgChart",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if a.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 func (a *Attachment) VisibilityFilter(fullAccess bool) map[string]any {

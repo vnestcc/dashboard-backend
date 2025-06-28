@@ -3,7 +3,9 @@ package company
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -414,6 +416,104 @@ func JoinCompany(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Successfully joined the company"})
 }
 
+func handleEdit[T editableModel](
+	ctx *gin.Context,
+	db *gorm.DB,
+	quarterObj *models.Quarter,
+	table string,
+	auditLog *logrus.Entry,
+) {
+	var req T
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "invalid_request_body",
+			"table":  table,
+		}).Warn("Invalid request body")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	v := reflect.ValueOf(&req)
+	var version uint32
+	var isEditable uint16
+	var model T
+
+	row := db.
+		Model(&model).
+		Select("version, is_editable").
+		Where("quarter_id = ? AND company_id = ?", quarterObj.ID, quarterObj.CompanyID).
+		Order("version DESC").
+		Limit(1).
+		Row()
+
+	err := row.Scan(&version, &isEditable)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			version = 1
+			isEditable = 1023
+		} else {
+			auditLog.WithFields(logrus.Fields{
+				"status":  "failure",
+				"error":   "db_scan_error",
+				"table":   table,
+				"details": err.Error(),
+			}).Error("Failed to fetch latest version")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch latest version"})
+			return
+		}
+	}
+
+	v.Elem().FieldByName("Version").SetUint(uint64(version))
+	v.Elem().FieldByName("IsEditable").SetUint(uint64(isEditable))
+
+	if err := req.EditableFilter(); err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "edit_mask_restricted",
+			"table":  table,
+		}).Warn("Edit not permitted by field-level mask")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	v.Elem().FieldByName("QuarterID").SetUint(uint64(quarterObj.ID))
+	v.Elem().FieldByName("CompanyID").SetUint(uint64(quarterObj.CompanyID))
+
+	if err := db.Create(&req).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "db_create_failed",
+			"table":  table,
+		}).Error("Failed to insert record")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add %s data", table)})
+		return
+	}
+
+	getID := func() uint {
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+		idField := v.FieldByName("ID")
+		if idField.IsValid() && idField.CanUint() {
+			return uint(idField.Uint())
+		}
+		return 0
+	}
+
+	auditLog.WithFields(logrus.Fields{
+		"status":  "success",
+		"table":   table,
+		"version": version,
+		"id":      getID(),
+	}).Info("Record versioned and inserted")
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": fmt.Sprintf("%s versioned and inserted", table),
+		"version": version,
+		"id":      getID(),
+	})
+}
+
 // EditCompany godoc
 // @Summary      Edit company information
 // @Description  Updates the existing company data. If `data=info` or omitted, updates company name, contact name, and contact email. Otherwise, allows versioned updates for specific company data types (such as finance, market, uniteconomics, etc) for a given quarter and year. The allowed types are: finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements. All data modifications are subject to field-level editability checks based on the current IsEditable mask for each record.
@@ -432,7 +532,6 @@ func JoinCompany(ctx *gin.Context) {
 // @Failure      404  {object}  map[string]string  "Company or quarter not found"
 // @Failure      500  {object}  map[string]string  "Server/database error"
 // @Router       /company/edit [put]
-// NOTE: need auditing
 func EditCompany(ctx *gin.Context) {
 	db := values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
@@ -451,15 +550,25 @@ func EditCompany(ctx *gin.Context) {
 		return
 	}
 	companyID := user.StartupID
-
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"type":       "audit",
+		"ip":         ctx.ClientIP(),
+		"event":      "edit_company",
+		"user_id":    user.ID,
+		"company_id": companyID,
+	})
 	var company models.Company
 	if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "company_not_found",
+		}).Warn("Company not found")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
 		return
 	}
-
 	dataVals := ctx.Request.URL.Query()["data"]
 	if len(dataVals) > 1 {
+		auditLog.WithField("status", "failure").Warn("Multiple 'data' parameters")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only one 'data' query parameter allowed"})
 		return
 	}
@@ -481,16 +590,17 @@ func EditCompany(ctx *gin.Context) {
 		"risk":          "RiskManagements",
 		"additional":    "AdditionalInfos",
 		"self":          "SelfAssessments",
-		"attachements":  "Attachments",
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {
+			auditLog.WithField("status", "failure").Warn("Invalid data type")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
 			return
 		}
 	}
 	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
 	if err != nil {
+		auditLog.WithField("status", "failure").Warn("Invalid year format")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
 		return
 	}
@@ -502,6 +612,7 @@ func EditCompany(ctx *gin.Context) {
 			ContactEmail *string `json:"contact_email"`
 		}
 		if err := ctx.ShouldBindJSON(&req); err != nil {
+			auditLog.WithField("status", "failure").Warn("Invalid company info body")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
@@ -515,266 +626,58 @@ func EditCompany(ctx *gin.Context) {
 			company.ContactEmail = *req.ContactEmail
 		}
 		if err := db.Save(&company).Error; err != nil {
+			auditLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"error":  err.Error(),
+			}).Error("Failed to update company info")
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update company"})
 			return
 		}
+		auditLog.WithField("status", "success").Info("Updated company info")
 		ctx.JSON(http.StatusOK, gin.H{"message": "Company updated successfully", "company": company})
 		return
 	}
 	var quarterObj models.Quarter
 	if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
 		First(&quarterObj).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":  "failure",
+			"quarter": quarter,
+			"year":    year,
+		}).Warn("Quarter not found")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
 		return
 	}
 	preloadField := allowedData[data]
 	if preloadField == "" {
+		auditLog.WithField("status", "failure").Warn("No editable data specified")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No editable data specified"})
 		return
 	}
 	switch data {
 	case "finance":
-		var req models.FinancialHealth
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		{
-			var version uint32
-			var isEditable uint16
-			row := db.
-				Model(&models.FinancialHealth{}).
-				Select("version, is_editable").
-				Where("quarter_id = ? AND company_id = ?", quarterObj.ID, quarterObj.CompanyID).
-				Order("version DESC").
-				Limit(1).
-				Row()
-			err := row.Scan(&version, &isEditable)
-			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					req.Version = 1
-					req.IsEditable = 1023
-				} else {
-					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch latest version"})
-					return
-				}
-			} else {
-				req.Version = version + uint32(1)
-				req.IsEditable = isEditable
-			}
-		}
-		if err := req.EditableFilter(); err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-			return
-		}
-		req.QuarterID = quarterObj.ID
-		req.CompanyID = quarterObj.CompanyID
-		if err := db.Create(&req).Error; err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add FinancialHealths data"})
-			return
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "FinancialHealths versioned and inserted"})
+		handleEdit[*models.FinancialHealth](ctx, db, &quarterObj, preloadField, auditLog)
 	case "market":
-		var req []models.MarketTraction
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.MarketTraction{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "MarketTractions versioned and inserted"})
+		handleEdit[*models.MarketTraction](ctx, db, &quarterObj, preloadField, auditLog)
 	case "uniteconomics":
-		var req []models.UnitEconomics
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.UnitEconomics{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "UnitEconomics versioned and inserted"})
+		handleEdit[*models.UnitEconomics](ctx, db, &quarterObj, preloadField, auditLog)
 	case "teamperf":
-		var req []models.TeamPerformance
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.TeamPerformance{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "TeamPerformances versioned and inserted"})
+		handleEdit[*models.TeamPerformance](ctx, db, &quarterObj, preloadField, auditLog)
 	case "fund":
-		var req []models.FundraisingStatus
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.FundraisingStatus{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "FundraisingStatuses versioned and inserted"})
+		handleEdit[*models.FundraisingStatus](ctx, db, &quarterObj, preloadField, auditLog)
 	case "competitive":
-		var req []models.CompetitiveLandscape
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.CompetitiveLandscape{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "CompetitiveLandscapes versioned and inserted"})
+		handleEdit[*models.CompetitiveLandscape](ctx, db, &quarterObj, preloadField, auditLog)
 	case "operation":
-		var req []models.OperationalEfficiency
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.OperationalEfficiency{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "OperationalEfficiencies versioned and inserted"})
+		handleEdit[*models.OperationalEfficiency](ctx, db, &quarterObj, preloadField, auditLog)
 	case "risk":
-		var req []models.RiskManagement
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.RiskManagement{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "RiskManagements versioned and inserted"})
+		handleEdit[*models.RiskManagement](ctx, db, &quarterObj, preloadField, auditLog)
 	case "additional":
-		var req []models.AdditionalInfo
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.AdditionalInfo{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "AdditionalInfos versioned and inserted"})
+		handleEdit[*models.AdditionalInfo](ctx, db, &quarterObj, preloadField, auditLog)
 	case "self":
-		var req []models.SelfAssessment
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.SelfAssessment{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "SelfAssessments versioned and inserted"})
-	case "attachements":
-		var req []models.Attachment
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
-			}
-			var maxVersion int
-			db.Model(&models.Attachment{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "Attachments versioned and inserted"})
+		handleEdit[*models.SelfAssessment](ctx, db, &quarterObj, preloadField, auditLog)
 	default:
+		auditLog.WithField("status", "failure").Warn("Unexpected data type after validation")
+		// assessment comes for upload
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
 	}
 }

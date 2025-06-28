@@ -8,23 +8,46 @@ import (
 
 type FundraisingStatus struct {
 	gorm.Model
-	CompanyID             uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID             uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version               uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	LastRound             string
-	CurrentInvestors      string
-	InvestorRelations     string
-	NextRound             string
-	TargetAmount          string
-	InvestorPipeline      string
-	ValuationExpectations string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint8 `gorm:"default:127"`
-	IsEditable uint8 `gorm:"default:127"`
+	LastRound             string `json:"last_round"`
+	CurrentInvestors      string `json:"current_investors"`
+	InvestorRelations     string `json:"investor_relations"`
+	NextRound             string `json:"next_round"`
+	TargetAmount          string `json:"target_amount"`
+	InvestorPipeline      string `json:"investor_pipeline"`
+	ValuationExpectations string `json:"valuation_expectations"`
+
+	IsVisible  uint8 `gorm:"default:127" json:"-"`
+	IsEditable uint8 `gorm:"default:127" json:"-"`
 }
 
 func (f *FundraisingStatus) TableName() string {
 	return "fund"
+}
+
+func (f *FundraisingStatus) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"LastRound",
+		"CurrentInvestors",
+		"InvestorRelations",
+		"NextRound",
+		"TargetAmount",
+		"InvestorPipeline",
+		"ValuationExpectations",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if f.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 // VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.

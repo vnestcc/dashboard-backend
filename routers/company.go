@@ -18,4 +18,6 @@ func loadCompanies(r *gin.RouterGroup) {
 	companyRouter.PUT("/edit", append(middleware.UserMiddleware, company.EditCompany)...)
 	companyRouter.DELETE("/delete", append(middleware.UserMiddleware, company.DeleteCompany)...)
 	companyRouter.POST("/join/:id", append(middleware.UserMiddleware, company.JoinCompany)...)
+	companyRouter.GET("/perms/:id/visible")
+	companyRouter.GET("/perms/editable")
 }

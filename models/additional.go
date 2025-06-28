@@ -8,20 +8,44 @@ import (
 
 type AdditionalInfo struct {
 	gorm.Model
-	CompanyID                uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID                uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version                  uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	GrowthChallenges         string // bit 0
-	SupportNeeded            string // bit 1
-	PolicyChanges            string // bit 2
-	PolicyImpact             string // bit 3
-	MitigationStrategies     string // bit 4
-	NewInitiatives           string // bit 5
-	InitiativeProgress       string // bit 6
-	BusinessModelAdjustments string // bit 7
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+
+	GrowthChallenges         string `json:"growth_challenges"`
+	SupportNeeded            string `json:"support_needed"`
+	PolicyChanges            string `json:"policy_changes"`
+	PolicyImpact             string `json:"policy_impact"`
+	MitigationStrategies     string `json:"mitigation_strategies"`
+	NewInitiatives           string `json:"new_initiatives"`
+	InitiativeProgress       string `json:"initiative_progress"`
+	BusinessModelAdjustments string `json:"business_model_adjustments"`
 
 	IsVisible  uint8 `gorm:"default:255"`
 	IsEditable uint8 `gorm:"default:255"`
+}
+
+func (a *AdditionalInfo) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"GrowthChallenges",
+		"SupportNeeded",
+		"PolicyChanges",
+		"PolicyImpact",
+		"MitigationStrategies",
+		"NewInitiatives",
+		"InitiativeProgress",
+		"BusinessModelAdjustments",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if a.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 func (a *AdditionalInfo) TableName() string {

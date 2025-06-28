@@ -8,22 +8,48 @@ import (
 
 type ProductDevelopment struct {
 	gorm.Model
-	CompanyID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version             uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	MilestonesAchieved  string
-	MilestonesMissed    string
-	Roadmap             string
-	ActiveUsers         string
-	EngagementMetrics   string
-	NPS                 string
-	FeatureAdoption     string
-	TechnicalChallenges string
-	TechnicalDebt       string
-	ProductBottlenecks  string
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	IsVisible  uint16 `gorm:"default:1023"`
-	IsEditable uint16 `gorm:"default:1023"`
+	MilestonesAchieved  string `json:"milestones_achieved"`
+	MilestonesMissed    string `json:"milestones_missed"`
+	Roadmap             string `json:"roadmap"`
+	ActiveUsers         string `json:"active_users"`
+	EngagementMetrics   string `json:"engagement_metrics"`
+	NPS                 string `json:"nps"`
+	FeatureAdoption     string `json:"feature_adoption"`
+	TechnicalChallenges string `json:"technical_challenges"`
+	TechnicalDebt       string `json:"technical_debt"`
+	ProductBottlenecks  string `json:"product_bottlenecks"`
+
+	IsVisible  uint16 `gorm:"default:1023" json:"-"`
+	IsEditable uint16 `gorm:"default:1023" json:"-"`
+}
+
+func (p *ProductDevelopment) VisibilityList(fullAccess bool) []string {
+	fields := []string{
+		"MilestonesAchieved",
+		"MilestonesMissed",
+		"Roadmap",
+		"ActiveUsers",
+		"EngagementMetrics",
+		"NPS",
+		"FeatureAdoption",
+		"TechnicalChallenges",
+		"TechnicalDebt",
+		"ProductBottlenecks",
+	}
+	if fullAccess {
+		return fields
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if p.IsVisible&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
 }
 
 // Bit positions: 0 = MilestonesAchieved, 1 = MilestonesMissed, 2 = Roadmap, 3 = ActiveUsers, 4 = EngagementMetrics,

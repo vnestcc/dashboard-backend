@@ -51,3 +51,7 @@ type versionInfo struct {
 	Version    uint32
 	IsEditable uint16
 }
+
+type editableModel interface {
+	EditableFilter() error
+}
