@@ -14,6 +14,8 @@ type Company struct {
 	ContactName  string
 	ContactEmail string `gorm:"unique"`
 	SecretCode   string `gorm:"unique"`
+	Sector       string
+	Description  string
 
 	Quarters []Quarter `gorm:"foreignKey:CompanyID"`
 }

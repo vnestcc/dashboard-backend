@@ -8,13 +8,21 @@ definitions:
       contact_name:
         example: John Doe
         type: string
+      description:
+        example: We do something xyz and make money
+        type: string
       name:
         example: Acme Inc
+        type: string
+      sector:
+        example: xyz
         type: string
     required:
     - contact_email
     - contact_name
+    - description
     - name
+    - sector
     type: object
   company.joinCompanyRequest:
     properties:
@@ -1114,7 +1122,7 @@ paths:
             type: object
       summary: List all companies
       tags:
-      - company
+      - admin
   /manage/users:
     get:
       consumes:

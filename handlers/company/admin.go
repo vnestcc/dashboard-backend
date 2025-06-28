@@ -151,7 +151,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.FinancialHealth{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "FinancialHealths versioned and inserted"})
@@ -167,7 +167,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.MarketTraction{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "MarketTractions versioned and inserted"})
@@ -183,7 +183,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.UnitEconomics{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "UnitEconomics versioned and inserted"})
@@ -199,7 +199,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.TeamPerformance{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "TeamPerformances versioned and inserted"})
@@ -215,7 +215,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.FundraisingStatus{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "FundraisingStatuses versioned and inserted"})
@@ -231,7 +231,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.CompetitiveLandscape{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "CompetitiveLandscapes versioned and inserted"})
@@ -247,7 +247,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.OperationalEfficiency{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "OperationalEfficiencies versioned and inserted"})
@@ -263,7 +263,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.RiskManagement{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "RiskManagements versioned and inserted"})
@@ -279,7 +279,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.AdditionalInfo{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "AdditionalInfos versioned and inserted"})
@@ -295,7 +295,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.SelfAssessment{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "SelfAssessments versioned and inserted"})
@@ -311,7 +311,7 @@ func EditCompanyByID(ctx *gin.Context) {
 			db.Model(&models.Attachment{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "Attachments versioned and inserted"})

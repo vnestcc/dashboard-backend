@@ -8,31 +8,31 @@ import (
 
 type FinancialHealth struct {
 	gorm.Model
-	CompanyID             uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID             uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version               int  `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
-	CashBalance           string
-	BurnRate              string
-	CashRunway            string
-	BurnRateChange        string
-	QuarterlyRevenue      string
-	RevenueGrowth         string
-	GrossMargin           string
-	NetMargin             string
-	ProfitabilityTimeline string
+	CompanyID             uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID             uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version               uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	CashBalance           string `json:"cash_balance"`
+	BurnRate              string `json:"burn_rate"`
+	CashRunway            string `json:"cash_runway"`
+	BurnRateChange        string `json:"burn_rate_change"`
+	QuarterlyRevenue      string `json:"quarterly_revenue"`
+	RevenueGrowth         string `json:"revenue_growth"`
+	GrossMargin           string `json:"gross_margin"`
+	NetMargin             string `json:"net_margin"`
+	ProfitabilityTimeline string `json:"profitability_timeline"`
 
-	RevenueBreakdowns []RevenueBreakdown
+	RevenueBreakdowns []RevenueBreakdown `json:"revenue_breakdowns"`
 
-	IsVisible  int `gorm:"default:1023"`
-	IsEditable int `gorm:"default:1023"`
+	IsVisible  uint16 `gorm:"default:1023" json:"-"`
+	IsEditable uint16 `gorm:"default:1023" json:"-"`
 }
 
 type RevenueBreakdown struct {
 	gorm.Model
-	FinancialHealthID uint
-	Product           string
-	Revenue           string
-	Percentage        string
+	FinancialHealthID uint   `json:"financial_health_id"`
+	Product           string `json:"product"`
+	Revenue           string `json:"revenue"`
+	Percentage        string `json:"percentage"`
 }
 
 func (f *FinancialHealth) TableName() string {

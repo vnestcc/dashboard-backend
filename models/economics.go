@@ -8,9 +8,9 @@ import (
 
 type UnitEconomics struct {
 	gorm.Model
-	CompanyID  uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID  uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version    int  `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	CompanyID  uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID  uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version    uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 	CAC        string
 	CACChange  string
 	LTV        string
@@ -20,8 +20,8 @@ type UnitEconomics struct {
 
 	MarketingBreakdowns []MarketingBreakdown
 
-	IsVisible  int `gorm:"default:127"`
-	IsEditable int `gorm:"default:127"`
+	IsVisible  uint8 `gorm:"default:127"`
+	IsEditable uint8 `gorm:"default:127"`
 }
 
 type MarketingBreakdown struct {

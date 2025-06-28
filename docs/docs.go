@@ -1223,7 +1223,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "company"
+                    "admin"
                 ],
                 "summary": "List all companies",
                 "responses": {
@@ -1906,7 +1906,9 @@ const docTemplate = `{
             "required": [
                 "contact_email",
                 "contact_name",
-                "name"
+                "description",
+                "name",
+                "sector"
             ],
             "properties": {
                 "contact_email": {
@@ -1917,9 +1919,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "John Doe"
                 },
+                "description": {
+                    "type": "string",
+                    "example": "We do something xyz and make money"
+                },
                 "name": {
                     "type": "string",
                     "example": "Acme Inc"
+                },
+                "sector": {
+                    "type": "string",
+                    "example": "xyz"
                 }
             }
         },

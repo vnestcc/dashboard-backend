@@ -60,5 +60,8 @@ func InitDB(cfg *config.Config) {
 		&models.ProductDevelopment{},
 		&models.SelfAssessment{},
 		&models.Attachment{},
+
+		&models.MarketingBreakdown{},
+		&models.RevenueBreakdown{},
 	)
 }

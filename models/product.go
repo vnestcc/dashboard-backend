@@ -8,9 +8,9 @@ import (
 
 type ProductDevelopment struct {
 	gorm.Model
-	CompanyID           uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID           uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version             int  `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	CompanyID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version             uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 	MilestonesAchieved  string
 	MilestonesMissed    string
 	Roadmap             string
@@ -22,8 +22,8 @@ type ProductDevelopment struct {
 	TechnicalDebt       string
 	ProductBottlenecks  string
 
-	IsVisible  int `gorm:"default:1023"`
-	IsEditable int `gorm:"default:1023"`
+	IsVisible  uint16 `gorm:"default:1023"`
+	IsEditable uint16 `gorm:"default:1023"`
 }
 
 // Bit positions: 0 = MilestonesAchieved, 1 = MilestonesMissed, 2 = Roadmap, 3 = ActiveUsers, 4 = EngagementMetrics,

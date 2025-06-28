@@ -8,9 +8,9 @@ import (
 
 type CompetitiveLandscape struct {
 	gorm.Model
-	CompanyID uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version   int  `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
 	NewCompetitors       string
 	CompetitorStrategies string
@@ -19,8 +19,8 @@ type CompetitiveLandscape struct {
 	Threats              string
 	DefensiveStrategies  string
 
-	IsVisible  int `gorm:"default:63"`
-	IsEditable int `gorm:"default:63"`
+	IsVisible  uint8 `gorm:"default:63"`
+	IsEditable uint8 `gorm:"default:63"`
 }
 
 func (c *CompetitiveLandscape) TableName() string {

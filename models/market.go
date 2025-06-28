@@ -8,9 +8,9 @@ import (
 
 type MarketTraction struct {
 	gorm.Model
-	CompanyID           uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID           uint `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	Version             int  `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
+	CompanyID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	QuarterID           uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	Version             uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 	NewCustomers        string
 	TotalCustomers      string
 	CustomerGrowth      string
@@ -24,8 +24,8 @@ type MarketTraction struct {
 	MarketShareChange   string
 	MarketTrends        string
 
-	IsVisible  int
-	IsEditable int
+	IsVisible  uint16 `gorm:"default:2047"`
+	IsEditable uint16 `gorm:"default:2047"`
 }
 
 func (m *MarketTraction) TableName() string {

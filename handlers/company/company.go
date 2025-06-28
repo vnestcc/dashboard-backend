@@ -27,6 +27,8 @@ type createCompanyRequest struct {
 	Name         string `json:"name" binding:"required" example:"Acme Inc"`
 	ContactName  string `json:"contact_name" binding:"required" example:"John Doe"`
 	ContactEmail string `json:"contact_email" binding:"required,email" example:"john@acme.com"`
+	Sector       string `json:"sector" binding:"required" example:"xyz"`
+	Description  string `json:"description" binding:"required" example:"We do something xyz and make money"`
 }
 
 type quarterResponse struct {
@@ -43,4 +45,9 @@ type joinCompanyRequest struct {
 type quarterRequest struct {
 	Quarter string `json:"quarter" binding:"required" example:"Q1"`
 	Year    uint   `json:"year" binding:"required" example:"2024"`
+}
+
+type versionInfo struct {
+	Version    uint32
+	IsEditable uint16
 }

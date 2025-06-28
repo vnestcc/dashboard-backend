@@ -1,6 +1,7 @@
 package company
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"strconv"
@@ -54,11 +55,7 @@ func CreateCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "Admins cannot create companies"})
 		return
 	}
-	var req struct {
-		Name         string `json:"name" binding:"required"`
-		ContactName  string `json:"contact_name" binding:"required"`
-		ContactEmail string `json:"contact_email" binding:"required,email"`
-	}
+	var req createCompanyRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		auditLog.WithFields(logrus.Fields{
 			"status":  "failure",
@@ -96,6 +93,8 @@ func CreateCompany(ctx *gin.Context) {
 		Name:         req.Name,
 		ContactName:  req.ContactName,
 		ContactEmail: req.ContactEmail,
+		Sector:       req.Sector,
+		Description:  req.Description,
 	}
 	if err := db.Create(&newCompany).Error; err != nil {
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "UNIQUE") {
@@ -435,7 +434,7 @@ func JoinCompany(ctx *gin.Context) {
 // @Router       /company/edit [put]
 // NOTE: need auditing
 func EditCompany(ctx *gin.Context) {
-	var db = values.GetDB()
+	db := values.GetDB()
 	claimsVal, exists := ctx.Get("claims")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -535,23 +534,44 @@ func EditCompany(ctx *gin.Context) {
 	}
 	switch data {
 	case "finance":
-		var req []models.FinancialHealth
+		var req models.FinancialHealth
 		if err := ctx.ShouldBindJSON(&req); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			if err := newObj.EditableFilter(); err != nil {
-				ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-				return
+		{
+			var version uint32
+			var isEditable uint16
+			row := db.
+				Model(&models.FinancialHealth{}).
+				Select("version, is_editable").
+				Where("quarter_id = ? AND company_id = ?", quarterObj.ID, quarterObj.CompanyID).
+				Order("version DESC").
+				Limit(1).
+				Row()
+			err := row.Scan(&version, &isEditable)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					req.Version = 1
+					req.IsEditable = 1023
+				} else {
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch latest version"})
+					return
+				}
+			} else {
+				req.Version = version + uint32(1)
+				req.IsEditable = isEditable
 			}
-			var maxVersion int
-			db.Model(&models.FinancialHealth{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
-			db.Create(&newObj)
+		}
+		if err := req.EditableFilter(); err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+		req.QuarterID = quarterObj.ID
+		req.CompanyID = quarterObj.CompanyID
+		if err := db.Create(&req).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add FinancialHealths data"})
+			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "FinancialHealths versioned and inserted"})
 	case "market":
@@ -570,7 +590,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.MarketTraction{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "MarketTractions versioned and inserted"})
@@ -590,7 +610,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.UnitEconomics{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "UnitEconomics versioned and inserted"})
@@ -610,7 +630,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.TeamPerformance{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "TeamPerformances versioned and inserted"})
@@ -630,7 +650,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.FundraisingStatus{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "FundraisingStatuses versioned and inserted"})
@@ -650,7 +670,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.CompetitiveLandscape{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "CompetitiveLandscapes versioned and inserted"})
@@ -670,7 +690,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.OperationalEfficiency{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "OperationalEfficiencies versioned and inserted"})
@@ -690,7 +710,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.RiskManagement{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "RiskManagements versioned and inserted"})
@@ -710,7 +730,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.AdditionalInfo{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "AdditionalInfos versioned and inserted"})
@@ -730,7 +750,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.SelfAssessment{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "SelfAssessments versioned and inserted"})
@@ -750,7 +770,7 @@ func EditCompany(ctx *gin.Context) {
 			db.Model(&models.Attachment{}).
 				Where("quarter_id = ?", quarterObj.ID).
 				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = maxVersion + 1
+			newObj.Version = uint32(1)
 			db.Create(&newObj)
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "Attachments versioned and inserted"})

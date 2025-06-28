@@ -78,7 +78,16 @@ func ListQuater(ctx *gin.Context) {
 		"company_id": company.ID,
 		"quarters":   len(company.Quarters),
 	}).Info("Fetched company quarters")
-	ctx.JSON(http.StatusOK, company.Quarters)
+	result := make([]quarterResponse, len(company.Quarters))
+	for _, quarter := range company.Quarters {
+		result = append(result, quarterResponse{
+			ID:      quarter.ID,
+			Quarter: quarter.Quarter,
+			Year:    quarter.Year,
+			Date:    quarter.Date.String(),
+		})
+	}
+	ctx.JSON(http.StatusOK, result)
 }
 
 // ListCompanyAdmin godoc
@@ -107,7 +116,7 @@ func ListCompany(ctx *gin.Context) {
 		"event": "list_company",
 	})
 	var companies []models.Company
-	result := make(map[uint]string)
+	result := make(map[uint]any)
 	if err := db.Find(&companies).Error; err != nil {
 		auditLog.WithFields(logrus.Fields{
 			"status": "failure",
@@ -118,7 +127,11 @@ func ListCompany(ctx *gin.Context) {
 	}
 	for i := range companies {
 		StartupCache.Set(companies[i].ID, companies[i])
-		result[companies[i].ID] = companies[i].Name
+		result[companies[i].ID] = map[string]any{
+			"name":        companies[i].Name,
+			"sector":      companies[i].Sector,
+			"description": companies[i].Description,
+		}
 	}
 	auditLog.WithFields(logrus.Fields{
 		"status":        "success",
