@@ -502,6 +502,7 @@ paths:
         - additional
         - self
         - attachements
+        - product
         in: query
         name: data
         type: string
@@ -660,7 +661,7 @@ paths:
         - risk
         - additional
         - self
-        - attachements
+        - product
         in: query
         name: data
         type: string

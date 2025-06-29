@@ -311,7 +311,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 // @Tags         company
 // @Produce      json
 // @Param        id       path   int     true  "Company ID"
-// @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
+// @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements, product)
 // @Param        quarter  query  string  false "Quarter (e.g. Q1, Q2, Q3, Q4)"
 // @Param        year     query  int     false "Year"
 // @Success      200  {object}  map[string]any
@@ -319,7 +319,6 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /company/{id} [get]
-// TEST: testing
 func GetCompanyByID(ctx *gin.Context) {
 	db := values.GetDB()
 	auditLog := utils.Logger.WithFields(logrus.Fields{

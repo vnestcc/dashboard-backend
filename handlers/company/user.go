@@ -449,7 +449,7 @@ func handleEdit[T editableModel](
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			version = 1
-			isEditable = 1023
+			isEditable = 4095
 		} else {
 			auditLog.WithFields(logrus.Fields{
 				"status":  "failure",
@@ -519,7 +519,7 @@ func handleEdit[T editableModel](
 // @Tags         company
 // @Accept       json
 // @Produce      json
-// @Param        data   query     string  false  "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)
+// @Param        data   query     string  false  "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, product)
 // @Param        quarter query    string  false  "Quarter name (e.g. Q1, Q2, Q3, Q4). Required unless data=info" Enum(Q1,Q2,Q3,Q4)
 // @Param        year    query    int  false  "Year (e.g. 2024). Required unless data=info"
 // @Param        body    body     object  true   "Payload matching the type of data being edited"
@@ -588,6 +588,7 @@ func EditCompany(ctx *gin.Context) {
 		"risk":          "RiskManagements",
 		"additional":    "AdditionalInfos",
 		"self":          "SelfAssessments",
+		"product":       "ProductDevelopment",
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {
@@ -677,7 +678,7 @@ func EditCompany(ctx *gin.Context) {
 		handleEdit[*models.SelfAssessment](ctx, db, &quarterObj, preloadField, auditLog)
 	default:
 		auditLog.WithField("status", "failure").Warn("Unexpected data type after validation")
-		// assessment comes for upload
+		// attachments comes for upload
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
 	}
 }

@@ -544,7 +544,7 @@
                             "risk",
                             "additional",
                             "self",
-                            "attachements"
+                            "product"
                         ],
                         "type": "string",
                         "description": "Which related data to include",
@@ -956,7 +956,8 @@
                             "risk",
                             "additional",
                             "self",
-                            "attachements"
+                            "attachements",
+                            "product"
                         ],
                         "type": "string",
                         "description": "Which related data to include",

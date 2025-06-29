@@ -551,7 +551,7 @@ const docTemplate = `{
                             "risk",
                             "additional",
                             "self",
-                            "attachements"
+                            "product"
                         ],
                         "type": "string",
                         "description": "Which related data to include",
@@ -963,7 +963,8 @@ const docTemplate = `{
                             "risk",
                             "additional",
                             "self",
-                            "attachements"
+                            "attachements",
+                            "product"
                         ],
                         "type": "string",
                         "description": "Which related data to include",
