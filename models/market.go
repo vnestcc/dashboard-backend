@@ -25,8 +25,8 @@ type MarketTraction struct {
 	MarketShareChange   string `json:"market_share_change"`
 	MarketTrends        string `json:"market_trends"`
 
-	IsVisible  uint16 `gorm:"default:2047" json:"-"`
-	IsEditable uint16 `gorm:"default:2047" json:"-"`
+	IsVisible  uint16 `gorm:"default:4095" json:"-"`
+	IsEditable uint16 `gorm:"default:4095" json:"-"`
 }
 
 func (m *MarketTraction) TableName() string {
