@@ -109,7 +109,7 @@ func ListCompanyAdmin(ctx *gin.Context) {
 // @Success      200  {object}  map[string]string
 // @Router       /company/list [get]
 func ListCompany(ctx *gin.Context) {
-	var db = values.GetDB()
+	db := values.GetDB()
 	auditLog := utils.Logger.WithFields(logrus.Fields{
 		"ip":    ctx.ClientIP(),
 		"type":  "audit",

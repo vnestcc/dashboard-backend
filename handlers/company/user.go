@@ -661,6 +661,8 @@ func EditCompany(ctx *gin.Context) {
 		handleEdit[*models.UnitEconomics](ctx, db, &quarterObj, preloadField, auditLog)
 	case "teamperf":
 		handleEdit[*models.TeamPerformance](ctx, db, &quarterObj, preloadField, auditLog)
+	case "product":
+		handleEdit[*models.ProductDevelopment](ctx, db, &quarterObj, preloadField, auditLog)
 	case "fund":
 		handleEdit[*models.FundraisingStatus](ctx, db, &quarterObj, preloadField, auditLog)
 	case "competitive":

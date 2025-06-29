@@ -29,12 +29,12 @@ func (c *CompetitiveLandscape) TableName() string {
 
 func (c *CompetitiveLandscape) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"NewCompetitors",
-		"CompetitorStrategies",
-		"MarketShifts",
-		"Differentiators",
-		"Threats",
-		"DefensiveStrategies",
+		"new_competitors",
+		"competitor_strategies",
+		"market_shifts",
+		"differentiators",
+		"threats",
+		"defensive_strategies",
 	}
 	if fullAccess {
 		return fields
@@ -51,33 +51,35 @@ func (c *CompetitiveLandscape) VisibilityList(fullAccess bool) []string {
 func (c *CompetitiveLandscape) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"NewCompetitors":       c.NewCompetitors,
-			"CompetitorStrategies": c.CompetitorStrategies,
-			"MarketShifts":         c.MarketShifts,
-			"Differentiators":      c.Differentiators,
-			"Threats":              c.Threats,
-			"DefensiveStrategies":  c.DefensiveStrategies,
+			"version":               c.Version,
+			"new_competitors":       c.NewCompetitors,
+			"competitor_strategies": c.CompetitorStrategies,
+			"market_shifts":         c.MarketShifts,
+			"differentiators":       c.Differentiators,
+			"threats":               c.Threats,
+			"defensive_strategies":  c.DefensiveStrategies,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = c.Version
 	if c.IsVisible&(1<<0) != 0 {
-		result["NewCompetitors"] = c.NewCompetitors
+		result["new_competitors"] = c.NewCompetitors
 	}
 	if c.IsVisible&(1<<1) != 0 {
-		result["CompetitorStrategies"] = c.CompetitorStrategies
+		result["competitor_strategies"] = c.CompetitorStrategies
 	}
 	if c.IsVisible&(1<<2) != 0 {
-		result["MarketShifts"] = c.MarketShifts
+		result["market_shifts"] = c.MarketShifts
 	}
 	if c.IsVisible&(1<<3) != 0 {
-		result["Differentiators"] = c.Differentiators
+		result["differentiators"] = c.Differentiators
 	}
 	if c.IsVisible&(1<<4) != 0 {
-		result["Threats"] = c.Threats
+		result["threats"] = c.Threats
 	}
 	if c.IsVisible&(1<<5) != 0 {
-		result["DefensiveStrategies"] = c.DefensiveStrategies
+		result["defensive_strategies"] = c.DefensiveStrategies
 	}
 	return result
 }
@@ -86,22 +88,22 @@ func (c *CompetitiveLandscape) EditableFilter() error {
 	var errFields []string
 
 	if c.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "NewCompetitors")
+		errFields = append(errFields, "new_competitors")
 	}
 	if c.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "CompetitorStrategies")
+		errFields = append(errFields, "competitor_strategies")
 	}
 	if c.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "MarketShifts")
+		errFields = append(errFields, "market_shifts")
 	}
 	if c.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "Differentiators")
+		errFields = append(errFields, "differentiators")
 	}
 	if c.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "Threats")
+		errFields = append(errFields, "threats")
 	}
 	if c.IsEditable&(1<<5) == 0 {
-		errFields = append(errFields, "DefensiveStrategies")
+		errFields = append(errFields, "defensive_strategies")
 	}
 
 	if len(errFields) > 0 {

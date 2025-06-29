@@ -18,6 +18,9 @@ import (
 
 func extractQuarterID(item any) uint {
 	val := reflect.ValueOf(item)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
 	field := val.FieldByName("QuarterID")
 	if field.IsValid() && field.CanUint() {
 		return uint(field.Uint())
@@ -120,25 +123,33 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 	var err error
 	switch tableName {
 	case "finance":
-		var results []models.FinancialHealth
+		var results []*models.FinancialHealth
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.FinancialHealth](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.FinancialHealth](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "finance") {
 			return
 		}
+		for _, fh := range results {
+			err := db.Model(fh).Association("RevenueBreakdowns").Find(&fh.RevenueBreakdowns)
+			if err != nil {
+				if respondWithErrorIfNeeded(ctx, err, "finance") {
+					return
+				}
+			}
+		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "FinancialHealths"}).Info("Fetched FinancialHealth data")
 	case "market":
-		var results []models.MarketTraction
+		var results []*models.MarketTraction
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.MarketTraction](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.MarketTraction](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "market") {
 			return
@@ -146,25 +157,33 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "MarketTractions"}).Info("Fetched MarketTraction data")
 	case "economics":
-		var results []models.UnitEconomics
+		var results []*models.UnitEconomics
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.UnitEconomics](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.UnitEconomics](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "economics") {
 			return
 		}
+		for _, ue := range results {
+			err := db.Model(ue).Association("MarketingBreakdowns").Find(&ue.MarketingBreakdowns)
+			if err != nil {
+				if respondWithErrorIfNeeded(ctx, err, "finance") {
+					return
+				}
+			}
+		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "UnitEconomics"}).Info("Fetched UnitEconomics data")
 	case "teamperf":
-		var results []models.TeamPerformance
+		var results []*models.TeamPerformance
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.TeamPerformance](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.TeamPerformance](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "teamperf") {
 			return
@@ -172,12 +191,12 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "TeamPerformances"}).Info("Fetched TeamPerformance data")
 	case "fund":
-		var results []models.FundraisingStatus
+		var results []*models.FundraisingStatus
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.FundraisingStatus](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.FundraisingStatus](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "fund") {
 			return
@@ -185,25 +204,38 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "FundraisingStatuses"}).Info("Fetched FundraisingStatus data")
 	case "competitive":
-		var results []models.CompetitiveLandscape
+		var results []*models.CompetitiveLandscape
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.CompetitiveLandscape](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.CompetitiveLandscape](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "competitve") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "CompetitiveLandscapes"}).Info("Fetched CompetitiveLandscape data")
-	case "operational":
-		var results []models.OperationalEfficiency
+	case "product":
+		var results []*models.ProductDevelopment
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.OperationalEfficiency](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.ProductDevelopment](db, companyID, quarter, year, tableName)
+		}
+		if respondWithErrorIfNeeded(ctx, err, "product") {
+			return
+		}
+		filterAndRespond(ctx, results, quarterID, fullAccess)
+		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "ProductDevelopment"}).Info("Fetched ProductDevelopment data")
+	case "operational":
+		var results []*models.OperationalEfficiency
+		if found {
+			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
+			quarterID = quarterObj.ID
+		} else {
+			results, quarterID, err = queryByQuarterID[*models.OperationalEfficiency](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "operational") {
 			return
@@ -211,12 +243,12 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "OperationalEfficiencies"}).Info("Fetched OperationalEfficiency data")
 	case "risk":
-		var results []models.RiskManagement
+		var results []*models.RiskManagement
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.RiskManagement](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.RiskManagement](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "risk") {
 			return
@@ -224,12 +256,12 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "RiskManagements"}).Info("Fetched RiskManagement data")
 	case "additional":
-		var results []models.AdditionalInfo
+		var results []*models.AdditionalInfo
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.AdditionalInfo](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.AdditionalInfo](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "additional") {
 			return
@@ -237,12 +269,12 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "AdditionalInfos"}).Info("Fetched AdditionalInfo data")
 	case "assessment":
-		var results []models.SelfAssessment
+		var results []*models.SelfAssessment
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.SelfAssessment](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.SelfAssessment](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "assessment") {
 			return
@@ -250,12 +282,12 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		filterAndRespond(ctx, results, quarterID, fullAccess)
 		auditLog.WithFields(logrus.Fields{"status": "success", "data_type": "SelfAssessments"}).Info("Fetched SelfAssessment data")
 	case "attachment":
-		var results []models.Attachment
+		var results []*models.Attachment
 		if found {
 			err = db.Where("quarter_id = ? AND company_id = ?", quarterObj.ID, companyID).Find(&results).Error
 			quarterID = quarterObj.ID
 		} else {
-			results, quarterID, err = queryByQuarterID[models.Attachment](db, companyID, quarter, year, tableName)
+			results, quarterID, err = queryByQuarterID[*models.Attachment](db, companyID, quarter, year, tableName)
 		}
 		if respondWithErrorIfNeeded(ctx, err, "attachment") {
 			return

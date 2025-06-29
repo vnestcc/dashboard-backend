@@ -31,14 +31,14 @@ func (r *RiskManagement) TableName() string {
 
 func (r *RiskManagement) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"RegulatoryChanges",
-		"ComplianceStatus",
-		"RegulatoryConcerns",
-		"SecurityAudits",
-		"DataProtection",
-		"SecurityIncidents",
-		"KeyDependencies",
-		"ContingencyPlans",
+		"regulatory_changes",
+		"compliance_status",
+		"regulatory_concerns",
+		"security_audits",
+		"data_protection",
+		"security_incidents",
+		"key_dependencies",
+		"contingency_plans",
 	}
 	if fullAccess {
 		return fields
@@ -52,46 +52,48 @@ func (r *RiskManagement) VisibilityList(fullAccess bool) []string {
 	return visibleFields
 }
 
-// Bit positions: 0 = RegulatoryChanges, 1 = ComplianceStatus, 2 = RegulatoryConcerns, 3 = SecurityAudits,
-// 4 = DataProtection, 5 = SecurityIncidents, 6 = KeyDependencies, 7 = ContingencyPlans
+// Bit positions: 0 = regulatory_changes, 1 = compliance_status, 2 = regulatory_concerns, 3 = security_audits,
+// 4 = data_protection, 5 = security_incidents, 6 = key_dependencies, 7 = contingency_plans
 func (r *RiskManagement) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"RegulatoryChanges":  r.RegulatoryChanges,
-			"ComplianceStatus":   r.ComplianceStatus,
-			"RegulatoryConcerns": r.RegulatoryConcerns,
-			"SecurityAudits":     r.SecurityAudits,
-			"DataProtection":     r.DataProtection,
-			"SecurityIncidents":  r.SecurityIncidents,
-			"KeyDependencies":    r.KeyDependencies,
-			"ContingencyPlans":   r.ContingencyPlans,
+			"version":             r.Version,
+			"regulatory_changes":  r.RegulatoryChanges,
+			"compliance_status":   r.ComplianceStatus,
+			"regulatory_concerns": r.RegulatoryConcerns,
+			"security_audits":     r.SecurityAudits,
+			"data_protection":     r.DataProtection,
+			"security_incidents":  r.SecurityIncidents,
+			"key_dependencies":    r.KeyDependencies,
+			"contingency_plans":   r.ContingencyPlans,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = r.Version
 	if r.IsVisible&(1<<0) != 0 {
-		result["RegulatoryChanges"] = r.RegulatoryChanges
+		result["regulatory_changes"] = r.RegulatoryChanges
 	}
 	if r.IsVisible&(1<<1) != 0 {
-		result["ComplianceStatus"] = r.ComplianceStatus
+		result["compliance_status"] = r.ComplianceStatus
 	}
 	if r.IsVisible&(1<<2) != 0 {
-		result["RegulatoryConcerns"] = r.RegulatoryConcerns
+		result["regulatory_concerns"] = r.RegulatoryConcerns
 	}
 	if r.IsVisible&(1<<3) != 0 {
-		result["SecurityAudits"] = r.SecurityAudits
+		result["security_audits"] = r.SecurityAudits
 	}
 	if r.IsVisible&(1<<4) != 0 {
-		result["DataProtection"] = r.DataProtection
+		result["data_protection"] = r.DataProtection
 	}
 	if r.IsVisible&(1<<5) != 0 {
-		result["SecurityIncidents"] = r.SecurityIncidents
+		result["security_incidents"] = r.SecurityIncidents
 	}
 	if r.IsVisible&(1<<6) != 0 {
-		result["KeyDependencies"] = r.KeyDependencies
+		result["key_dependencies"] = r.KeyDependencies
 	}
 	if r.IsVisible&(1<<7) != 0 {
-		result["ContingencyPlans"] = r.ContingencyPlans
+		result["contingency_plans"] = r.ContingencyPlans
 	}
 	return result
 }
@@ -100,28 +102,28 @@ func (r *RiskManagement) EditableFilter() error {
 	var errFields []string
 
 	if r.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "RegulatoryChanges")
+		errFields = append(errFields, "regulatory_changes")
 	}
 	if r.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "ComplianceStatus")
+		errFields = append(errFields, "compliance_status")
 	}
 	if r.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "RegulatoryConcerns")
+		errFields = append(errFields, "regulatory_concerns")
 	}
 	if r.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "SecurityAudits")
+		errFields = append(errFields, "security_audits")
 	}
 	if r.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "DataProtection")
+		errFields = append(errFields, "data_protection")
 	}
 	if r.IsEditable&(1<<5) == 0 {
-		errFields = append(errFields, "SecurityIncidents")
+		errFields = append(errFields, "security_incidents")
 	}
 	if r.IsEditable&(1<<6) == 0 {
-		errFields = append(errFields, "KeyDependencies")
+		errFields = append(errFields, "key_dependencies")
 	}
 	if r.IsEditable&(1<<7) == 0 {
-		errFields = append(errFields, "ContingencyPlans")
+		errFields = append(errFields, "contingency_plans")
 	}
 
 	if len(errFields) > 0 {

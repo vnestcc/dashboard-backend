@@ -35,18 +35,18 @@ func (m *MarketTraction) TableName() string {
 
 func (m *MarketTraction) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"NewCustomers",
-		"TotalCustomers",
-		"CustomerGrowth",
-		"RetentionRate",
-		"ChurnRate",
-		"PipelineValue",
-		"ConversionRate",
-		"SalesCycle",
-		"SalesProcessChanges",
-		"MarketShare",
-		"MarketShareChange",
-		"MarketTrends",
+		"new_customers",
+		"total_customers",
+		"customer_growth",
+		"retention_rate",
+		"churn_rate",
+		"pipeline_value",
+		"conversion_rate",
+		"sales_cycle",
+		"sales_process_changes",
+		"market_share",
+		"market_share_change",
+		"market_trends",
 	}
 	if fullAccess {
 		return fields
@@ -60,64 +60,63 @@ func (m *MarketTraction) VisibilityList(fullAccess bool) []string {
 	return visibleFields
 }
 
-// VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.
-// Bit positions: 0 = NewCustomers, 1 = TotalCustomers, 2 = CustomerGrowth, 3 = RetentionRate, 4 = ChurnRate,
-// 5 = PipelineValue, 6 = ConversionRate, 7 = SalesCycle, 8 = SalesProcessChanges, 9 = MarketShare,
-// 10 = MarketShareChange, 11 = MarketTrends
+// VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess, using JSON field names as keys.
 func (m *MarketTraction) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"NewCustomers":        m.NewCustomers,
-			"TotalCustomers":      m.TotalCustomers,
-			"CustomerGrowth":      m.CustomerGrowth,
-			"RetentionRate":       m.RetentionRate,
-			"ChurnRate":           m.ChurnRate,
-			"PipelineValue":       m.PipelineValue,
-			"ConversionRate":      m.ConversionRate,
-			"SalesCycle":          m.SalesCycle,
-			"SalesProcessChanges": m.SalesProcessChanges,
-			"MarketShare":         m.MarketShare,
-			"MarketShareChange":   m.MarketShareChange,
-			"MarketTrends":        m.MarketTrends,
+			"version":               m.Version,
+			"new_customers":         m.NewCustomers,
+			"total_customers":       m.TotalCustomers,
+			"customer_growth":       m.CustomerGrowth,
+			"retention_rate":        m.RetentionRate,
+			"churn_rate":            m.ChurnRate,
+			"pipeline_value":        m.PipelineValue,
+			"conversion_rate":       m.ConversionRate,
+			"sales_cycle":           m.SalesCycle,
+			"sales_process_changes": m.SalesProcessChanges,
+			"market_share":          m.MarketShare,
+			"market_share_change":   m.MarketShareChange,
+			"market_trends":         m.MarketTrends,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = m.Version
 	if m.IsVisible&(1<<0) != 0 {
-		result["NewCustomers"] = m.NewCustomers
+		result["new_customers"] = m.NewCustomers
 	}
 	if m.IsVisible&(1<<1) != 0 {
-		result["TotalCustomers"] = m.TotalCustomers
+		result["total_customers"] = m.TotalCustomers
 	}
 	if m.IsVisible&(1<<2) != 0 {
-		result["CustomerGrowth"] = m.CustomerGrowth
+		result["customer_growth"] = m.CustomerGrowth
 	}
 	if m.IsVisible&(1<<3) != 0 {
-		result["RetentionRate"] = m.RetentionRate
+		result["retention_rate"] = m.RetentionRate
 	}
 	if m.IsVisible&(1<<4) != 0 {
-		result["ChurnRate"] = m.ChurnRate
+		result["churn_rate"] = m.ChurnRate
 	}
 	if m.IsVisible&(1<<5) != 0 {
-		result["PipelineValue"] = m.PipelineValue
+		result["pipeline_value"] = m.PipelineValue
 	}
 	if m.IsVisible&(1<<6) != 0 {
-		result["ConversionRate"] = m.ConversionRate
+		result["conversion_rate"] = m.ConversionRate
 	}
 	if m.IsVisible&(1<<7) != 0 {
-		result["SalesCycle"] = m.SalesCycle
+		result["sales_cycle"] = m.SalesCycle
 	}
 	if m.IsVisible&(1<<8) != 0 {
-		result["SalesProcessChanges"] = m.SalesProcessChanges
+		result["sales_process_changes"] = m.SalesProcessChanges
 	}
 	if m.IsVisible&(1<<9) != 0 {
-		result["MarketShare"] = m.MarketShare
+		result["market_share"] = m.MarketShare
 	}
 	if m.IsVisible&(1<<10) != 0 {
-		result["MarketShareChange"] = m.MarketShareChange
+		result["market_share_change"] = m.MarketShareChange
 	}
 	if m.IsVisible&(1<<11) != 0 {
-		result["MarketTrends"] = m.MarketTrends
+		result["market_trends"] = m.MarketTrends
 	}
 	return result
 }
@@ -126,40 +125,40 @@ func (m *MarketTraction) EditableFilter() error {
 	var errFields []string
 
 	if m.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "NewCustomers")
+		errFields = append(errFields, "new_customers")
 	}
 	if m.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "TotalCustomers")
+		errFields = append(errFields, "total_customers")
 	}
 	if m.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "CustomerGrowth")
+		errFields = append(errFields, "customer_growth")
 	}
 	if m.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "RetentionRate")
+		errFields = append(errFields, "retention_rate")
 	}
 	if m.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "ChurnRate")
+		errFields = append(errFields, "churn_rate")
 	}
 	if m.IsEditable&(1<<5) == 0 {
-		errFields = append(errFields, "PipelineValue")
+		errFields = append(errFields, "pipeline_value")
 	}
 	if m.IsEditable&(1<<6) == 0 {
-		errFields = append(errFields, "ConversionRate")
+		errFields = append(errFields, "conversion_rate")
 	}
 	if m.IsEditable&(1<<7) == 0 {
-		errFields = append(errFields, "SalesCycle")
+		errFields = append(errFields, "sales_cycle")
 	}
 	if m.IsEditable&(1<<8) == 0 {
-		errFields = append(errFields, "SalesProcessChanges")
+		errFields = append(errFields, "sales_process_changes")
 	}
 	if m.IsEditable&(1<<9) == 0 {
-		errFields = append(errFields, "MarketShare")
+		errFields = append(errFields, "market_share")
 	}
 	if m.IsEditable&(1<<10) == 0 {
-		errFields = append(errFields, "MarketShareChange")
+		errFields = append(errFields, "market_share_change")
 	}
 	if m.IsEditable&(1<<11) == 0 {
-		errFields = append(errFields, "MarketTrends")
+		errFields = append(errFields, "market_trends")
 	}
 
 	if len(errFields) > 0 {

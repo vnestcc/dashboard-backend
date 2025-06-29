@@ -26,7 +26,7 @@ type UnitEconomics struct {
 }
 
 type MarketingBreakdown struct {
-	gorm.Model
+	gorm.Model      `json:"-"`
 	UnitEconomicsID uint   `json:"-"`
 	Channel         string `json:"channel"`
 	Spend           string `json:"spend"`
@@ -36,13 +36,13 @@ type MarketingBreakdown struct {
 
 func (u *UnitEconomics) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"CAC",
-		"CACChange",
-		"LTV",
-		"LTVRatio",
-		"CACPayback",
-		"ARPU",
-		"MarketingBreakdowns",
+		"cac",
+		"cac_change",
+		"ltv",
+		"ltv_ratio",
+		"cac_payback",
+		"arpu",
+		"marketing_breakdowns",
 	}
 	if fullAccess {
 		return fields
@@ -63,73 +63,75 @@ func (u *UnitEconomics) TableName() string {
 func (u *UnitEconomics) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"CAC":                 u.CAC,
-			"CACChange":           u.CACChange,
-			"LTV":                 u.LTV,
-			"LTVRatio":            u.LTVRatio,
-			"CACPayback":          u.CACPayback,
-			"ARPU":                u.ARPU,
-			"MarketingBreakdowns": u.MarketingBreakdowns,
+			"version":              u.Version,
+			"cac":                  u.CAC,
+			"cac_change":           u.CACChange,
+			"ltv":                  u.LTV,
+			"ltv_ratio":            u.LTVRatio,
+			"cac_payback":          u.CACPayback,
+			"arpu":                 u.ARPU,
+			"marketing_breakdowns": u.MarketingBreakdowns,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = u.Version
 	if u.IsVisible&(1<<0) != 0 {
-		result["CAC"] = u.CAC
+		result["cac"] = u.CAC
 	}
 	if u.IsVisible&(1<<1) != 0 {
-		result["CACChange"] = u.CACChange
+		result["cac_change"] = u.CACChange
 	}
 	if u.IsVisible&(1<<2) != 0 {
-		result["LTV"] = u.LTV
+		result["ltv"] = u.LTV
 	}
 	if u.IsVisible&(1<<3) != 0 {
-		result["LTVRatio"] = u.LTVRatio
+		result["ltv_ratio"] = u.LTVRatio
 	}
 	if u.IsVisible&(1<<4) != 0 {
-		result["CACPayback"] = u.CACPayback
+		result["cac_payback"] = u.CACPayback
 	}
 	if u.IsVisible&(1<<5) != 0 {
-		result["ARPU"] = u.ARPU
+		result["arpu"] = u.ARPU
 	}
 	if u.IsVisible&(1<<6) != 0 {
-		result["MarketingBreakdowns"] = u.MarketingBreakdowns
+		result["marketing_breakdowns"] = u.MarketingBreakdowns
 	}
 	return result
 }
 
 // EditableFilter returns an error listing all fields that are not editable.
 // Bit mapping:
-// 0: CAC
-// 1: CACChange
-// 2: LTV
-// 3: LTVRatio
-// 4: CACPayback
-// 5: ARPU
-// 6: MarketingBreakdowns (optional, add if you want bit-level control for slice fields)
+// 0: cac
+// 1: cac_change
+// 2: ltv
+// 3: ltv_ratio
+// 4: cac_payback
+// 5: arpu
+// 6: marketing_breakdowns
 func (u *UnitEconomics) EditableFilter() error {
 	var errFields []string
 
 	if u.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "CAC")
+		errFields = append(errFields, "cac")
 	}
 	if u.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "CACChange")
+		errFields = append(errFields, "cac_change")
 	}
 	if u.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "LTV")
+		errFields = append(errFields, "ltv")
 	}
 	if u.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "LTVRatio")
+		errFields = append(errFields, "ltv_ratio")
 	}
 	if u.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "CACPayback")
+		errFields = append(errFields, "cac_payback")
 	}
 	if u.IsEditable&(1<<5) == 0 {
-		errFields = append(errFields, "ARPU")
+		errFields = append(errFields, "arpu")
 	}
 	if u.IsEditable&(1<<6) == 0 {
-		errFields = append(errFields, "MarketingBreakdowns")
+		errFields = append(errFields, "marketing_breakdowns")
 	}
 
 	if len(errFields) > 0 {

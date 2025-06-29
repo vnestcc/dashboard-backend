@@ -29,8 +29,8 @@ type FinancialHealth struct {
 }
 
 type RevenueBreakdown struct {
-	gorm.Model
-	FinancialHealthID uint   `json:"financial_health_id"`
+	gorm.Model        `json:"-"`
+	FinancialHealthID uint   `json:"-"`
 	Product           string `json:"product"`
 	Revenue           string `json:"revenue"`
 	Percentage        string `json:"percentage"`
@@ -42,16 +42,16 @@ func (f *FinancialHealth) TableName() string {
 
 func (f *FinancialHealth) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"CashBalance",
-		"BurnRate",
-		"CashRunway",
-		"BurnRateChange",
-		"QuarterlyRevenue",
-		"RevenueGrowth",
-		"GrossMargin",
-		"NetMargin",
-		"ProfitabilityTimeline",
-		"RevenueBreakdowns",
+		"cash_balance",
+		"burn_rate",
+		"cash_runway",
+		"burn_rate_change",
+		"quarterly_revenue",
+		"revenue_growth",
+		"gross_margin",
+		"net_margin",
+		"profitability_timeline",
+		"revenue_breakdowns",
 	}
 	if fullAccess {
 		return fields
@@ -68,49 +68,51 @@ func (f *FinancialHealth) VisibilityList(fullAccess bool) []string {
 func (f *FinancialHealth) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"CashBalance":           f.CashBalance,
-			"BurnRate":              f.BurnRate,
-			"CashRunway":            f.CashRunway,
-			"BurnRateChange":        f.BurnRateChange,
-			"QuarterlyRevenue":      f.QuarterlyRevenue,
-			"RevenueGrowth":         f.RevenueGrowth,
-			"GrossMargin":           f.GrossMargin,
-			"NetMargin":             f.NetMargin,
-			"ProfitabilityTimeline": f.ProfitabilityTimeline,
-			"RevenueBreakdowns":     f.RevenueBreakdowns,
+			"version":                f.Version,
+			"cash_balance":           f.CashBalance,
+			"burn_rate":              f.BurnRate,
+			"cash_runway":            f.CashRunway,
+			"burn_rate_change":       f.BurnRateChange,
+			"quarterly_revenue":      f.QuarterlyRevenue,
+			"revenue_growth":         f.RevenueGrowth,
+			"gross_margin":           f.GrossMargin,
+			"net_margin":             f.NetMargin,
+			"profitability_timeline": f.ProfitabilityTimeline,
+			"revenue_breakdowns":     f.RevenueBreakdowns,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = f.Version
 	if f.IsVisible&(1<<0) != 0 {
-		result["CashBalance"] = f.CashBalance
+		result["cash_balance"] = f.CashBalance
 	}
 	if f.IsVisible&(1<<1) != 0 {
-		result["BurnRate"] = f.BurnRate
+		result["burn_rate"] = f.BurnRate
 	}
 	if f.IsVisible&(1<<2) != 0 {
-		result["CashRunway"] = f.CashRunway
+		result["cash_runway"] = f.CashRunway
 	}
 	if f.IsVisible&(1<<3) != 0 {
-		result["BurnRateChange"] = f.BurnRateChange
+		result["burn_rate_change"] = f.BurnRateChange
 	}
 	if f.IsVisible&(1<<4) != 0 {
-		result["QuarterlyRevenue"] = f.QuarterlyRevenue
+		result["quarterly_revenue"] = f.QuarterlyRevenue
 	}
 	if f.IsVisible&(1<<5) != 0 {
-		result["RevenueGrowth"] = f.RevenueGrowth
+		result["revenue_growth"] = f.RevenueGrowth
 	}
 	if f.IsVisible&(1<<6) != 0 {
-		result["GrossMargin"] = f.GrossMargin
+		result["gross_margin"] = f.GrossMargin
 	}
 	if f.IsVisible&(1<<7) != 0 {
-		result["NetMargin"] = f.NetMargin
+		result["net_margin"] = f.NetMargin
 	}
 	if f.IsVisible&(1<<8) != 0 {
-		result["ProfitabilityTimeline"] = f.ProfitabilityTimeline
+		result["profitability_timeline"] = f.ProfitabilityTimeline
 	}
 	if f.IsVisible&(1<<9) != 0 {
-		result["RevenueBreakdowns"] = f.RevenueBreakdowns
+		result["revenue_breakdowns"] = f.RevenueBreakdowns
 	}
 	return result
 }
@@ -119,34 +121,34 @@ func (f *FinancialHealth) EditableFilter() error {
 	var errFields []string
 
 	if f.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "CashBalance")
+		errFields = append(errFields, "cash_balance")
 	}
 	if f.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "BurnRate")
+		errFields = append(errFields, "burn_rate")
 	}
 	if f.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "CashRunway")
+		errFields = append(errFields, "cash_runway")
 	}
 	if f.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "BurnRateChange")
+		errFields = append(errFields, "burn_rate_change")
 	}
 	if f.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "QuarterlyRevenue")
+		errFields = append(errFields, "quarterly_revenue")
 	}
 	if f.IsEditable&(1<<5) == 0 {
-		errFields = append(errFields, "RevenueGrowth")
+		errFields = append(errFields, "revenue_growth")
 	}
 	if f.IsEditable&(1<<6) == 0 {
-		errFields = append(errFields, "GrossMargin")
+		errFields = append(errFields, "gross_margin")
 	}
 	if f.IsEditable&(1<<7) == 0 {
-		errFields = append(errFields, "NetMargin")
+		errFields = append(errFields, "net_margin")
 	}
 	if f.IsEditable&(1<<8) == 0 {
-		errFields = append(errFields, "ProfitabilityTimeline")
+		errFields = append(errFields, "profitability_timeline")
 	}
 	if f.IsEditable&(1<<9) == 0 {
-		errFields = append(errFields, "RevenueBreakdowns")
+		errFields = append(errFields, "revenue_breakdowns")
 	}
 
 	if len(errFields) > 0 {

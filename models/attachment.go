@@ -28,11 +28,11 @@ func (a *Attachment) TableName() string {
 
 func (a *Attachment) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"FinancialStatements",
-		"PitchDeck",
-		"ProductRoadmap",
-		"PerformanceDashboard",
-		"OrgChart",
+		"financial_statements",
+		"pitch_deck",
+		"product_roadmap",
+		"performance_dashboard",
+		"org_chart",
 	}
 	if fullAccess {
 		return fields
@@ -49,29 +49,31 @@ func (a *Attachment) VisibilityList(fullAccess bool) []string {
 func (a *Attachment) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"FinancialStatements":  a.FinancialStatements,
-			"PitchDeck":            a.PitchDeck,
-			"ProductRoadmap":       a.ProductRoadmap,
-			"PerformanceDashboard": a.PerformanceDashboard,
-			"OrgChart":             a.OrgChart,
+			"version":               a.Version,
+			"financial_statements":  a.FinancialStatements,
+			"pitch_deck":            a.PitchDeck,
+			"product_roadmap":       a.ProductRoadmap,
+			"performance_dashboard": a.PerformanceDashboard,
+			"org_chart":             a.OrgChart,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = a.Version
 	if a.IsVisible&(1<<0) != 0 {
-		result["FinancialStatements"] = a.FinancialStatements
+		result["financial_statements"] = a.FinancialStatements
 	}
 	if a.IsVisible&(1<<1) != 0 {
-		result["PitchDeck"] = a.PitchDeck
+		result["pitch_deck"] = a.PitchDeck
 	}
 	if a.IsVisible&(1<<2) != 0 {
-		result["ProductRoadmap"] = a.ProductRoadmap
+		result["product_roadmap"] = a.ProductRoadmap
 	}
 	if a.IsVisible&(1<<3) != 0 {
-		result["PerformanceDashboard"] = a.PerformanceDashboard
+		result["performance_dashboard"] = a.PerformanceDashboard
 	}
 	if a.IsVisible&(1<<4) != 0 {
-		result["OrgChart"] = a.OrgChart
+		result["org_chart"] = a.OrgChart
 	}
 	return result
 }
@@ -80,19 +82,19 @@ func (a *Attachment) EditableFilter() error {
 	var errFields []string
 
 	if a.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "FinancialStatements")
+		errFields = append(errFields, "financial_statements")
 	}
 	if a.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "PitchDeck")
+		errFields = append(errFields, "pitch_deck")
 	}
 	if a.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "ProductRoadmap")
+		errFields = append(errFields, "product_roadmap")
 	}
 	if a.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "PerformanceDashboard")
+		errFields = append(errFields, "performance_dashboard")
 	}
 	if a.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "OrgChart")
+		errFields = append(errFields, "org_chart")
 	}
 
 	if len(errFields) > 0 {

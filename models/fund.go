@@ -30,13 +30,13 @@ func (f *FundraisingStatus) TableName() string {
 
 func (f *FundraisingStatus) VisibilityList(fullAccess bool) []string {
 	fields := []string{
-		"LastRound",
-		"CurrentInvestors",
-		"InvestorRelations",
-		"NextRound",
-		"TargetAmount",
-		"InvestorPipeline",
-		"ValuationExpectations",
+		"last_round",
+		"current_investors",
+		"investor_relations",
+		"next_round",
+		"target_amount",
+		"investor_pipeline",
+		"valuation_expectations",
 	}
 	if fullAccess {
 		return fields
@@ -50,43 +50,44 @@ func (f *FundraisingStatus) VisibilityList(fullAccess bool) []string {
 	return visibleFields
 }
 
-// VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess.
-// Bit positions: 0 = LastRound, 1 = CurrentInvestors, 2 = InvestorRelations, 3 = NextRound,
-// 4 = TargetAmount, 5 = InvestorPipeline, 6 = ValuationExpectations
+// VisibilityFilter returns a map of visible fields based on IsVisible and fullAccess,
+// using JSON field names as keys.
 func (f *FundraisingStatus) VisibilityFilter(fullAccess bool) map[string]any {
 	if fullAccess {
 		return map[string]any{
-			"LastRound":             f.LastRound,
-			"CurrentInvestors":      f.CurrentInvestors,
-			"InvestorRelations":     f.InvestorRelations,
-			"NextRound":             f.NextRound,
-			"TargetAmount":          f.TargetAmount,
-			"InvestorPipeline":      f.InvestorPipeline,
-			"ValuationExpectations": f.ValuationExpectations,
+			"version":                f.Version,
+			"last_round":             f.LastRound,
+			"current_investors":      f.CurrentInvestors,
+			"investor_relations":     f.InvestorRelations,
+			"next_round":             f.NextRound,
+			"target_amount":          f.TargetAmount,
+			"investor_pipeline":      f.InvestorPipeline,
+			"valuation_expectations": f.ValuationExpectations,
 		}
 	}
 
 	result := make(map[string]any)
+	result["version"] = f.Version
 	if f.IsVisible&(1<<0) != 0 {
-		result["LastRound"] = f.LastRound
+		result["last_round"] = f.LastRound
 	}
 	if f.IsVisible&(1<<1) != 0 {
-		result["CurrentInvestors"] = f.CurrentInvestors
+		result["current_investors"] = f.CurrentInvestors
 	}
 	if f.IsVisible&(1<<2) != 0 {
-		result["InvestorRelations"] = f.InvestorRelations
+		result["investor_relations"] = f.InvestorRelations
 	}
 	if f.IsVisible&(1<<3) != 0 {
-		result["NextRound"] = f.NextRound
+		result["next_round"] = f.NextRound
 	}
 	if f.IsVisible&(1<<4) != 0 {
-		result["TargetAmount"] = f.TargetAmount
+		result["target_amount"] = f.TargetAmount
 	}
 	if f.IsVisible&(1<<5) != 0 {
-		result["InvestorPipeline"] = f.InvestorPipeline
+		result["investor_pipeline"] = f.InvestorPipeline
 	}
 	if f.IsVisible&(1<<6) != 0 {
-		result["ValuationExpectations"] = f.ValuationExpectations
+		result["valuation_expectations"] = f.ValuationExpectations
 	}
 	return result
 }
@@ -95,25 +96,25 @@ func (f *FundraisingStatus) EditableFilter() error {
 	var errFields []string
 
 	if f.IsEditable&(1<<0) == 0 {
-		errFields = append(errFields, "LastRound")
+		errFields = append(errFields, "last_round")
 	}
 	if f.IsEditable&(1<<1) == 0 {
-		errFields = append(errFields, "CurrentInvestors")
+		errFields = append(errFields, "current_investors")
 	}
 	if f.IsEditable&(1<<2) == 0 {
-		errFields = append(errFields, "InvestorRelations")
+		errFields = append(errFields, "investor_relations")
 	}
 	if f.IsEditable&(1<<3) == 0 {
-		errFields = append(errFields, "NextRound")
+		errFields = append(errFields, "next_round")
 	}
 	if f.IsEditable&(1<<4) == 0 {
-		errFields = append(errFields, "TargetAmount")
+		errFields = append(errFields, "target_amount")
 	}
 	if f.IsEditable&(1<<5) == 0 {
-		errFields = append(errFields, "InvestorPipeline")
+		errFields = append(errFields, "investor_pipeline")
 	}
 	if f.IsEditable&(1<<6) == 0 {
-		errFields = append(errFields, "ValuationExpectations")
+		errFields = append(errFields, "valuation_expectations")
 	}
 
 	if len(errFields) > 0 {
