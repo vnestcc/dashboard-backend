@@ -433,7 +433,7 @@ func handleEdit[T editableModel](
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
-	v := reflect.ValueOf(&req)
+	v := reflect.ValueOf(req)
 	var version uint32
 	var isEditable uint16
 	var model T
@@ -445,7 +445,6 @@ func handleEdit[T editableModel](
 		Order("version DESC").
 		Limit(1).
 		Row()
-
 	err := row.Scan(&version, &isEditable)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -461,11 +460,11 @@ func handleEdit[T editableModel](
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch latest version"})
 			return
 		}
+	} else {
+		version = version + uint32(1)
 	}
-
 	v.Elem().FieldByName("Version").SetUint(uint64(version))
 	v.Elem().FieldByName("IsEditable").SetUint(uint64(isEditable))
-
 	if err := req.EditableFilter(); err != nil {
 		auditLog.WithFields(logrus.Fields{
 			"status": "failure",
@@ -475,15 +474,14 @@ func handleEdit[T editableModel](
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-
 	v.Elem().FieldByName("QuarterID").SetUint(uint64(quarterObj.ID))
 	v.Elem().FieldByName("CompanyID").SetUint(uint64(quarterObj.CompanyID))
-
 	if err := db.Create(&req).Error; err != nil {
 		auditLog.WithFields(logrus.Fields{
-			"status": "failure",
-			"error":  "db_create_failed",
-			"table":  table,
+			"status":  "failure",
+			"error":   "db_create_failed",
+			"table":   table,
+			"details": err.Error(),
 		}).Error("Failed to insert record")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add %s data", table)})
 		return

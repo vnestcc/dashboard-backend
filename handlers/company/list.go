@@ -78,7 +78,7 @@ func ListQuater(ctx *gin.Context) {
 		"company_id": company.ID,
 		"quarters":   len(company.Quarters),
 	}).Info("Fetched company quarters")
-	result := make([]quarterResponse, len(company.Quarters))
+	result := make([]quarterResponse, 0, len(company.Quarters))
 	for _, quarter := range company.Quarters {
 		result = append(result, quarterResponse{
 			ID:      quarter.ID,
@@ -116,7 +116,6 @@ func ListCompany(ctx *gin.Context) {
 		"event": "list_company",
 	})
 	var companies []models.Company
-	result := make(map[uint]any)
 	if err := db.Find(&companies).Error; err != nil {
 		auditLog.WithFields(logrus.Fields{
 			"status": "failure",
@@ -125,6 +124,7 @@ func ListCompany(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve the company list"})
 		return
 	}
+	result := make(map[uint]any, len(companies))
 	for i := range companies {
 		StartupCache.Set(companies[i].ID, companies[i])
 		result[companies[i].ID] = map[string]any{

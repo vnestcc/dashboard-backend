@@ -8,8 +8,8 @@ import (
 
 type Attachment struct {
 	gorm.Model
-	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
 	FinancialStatements  string `json:"financial_statements"` // bit 0
@@ -20,6 +20,10 @@ type Attachment struct {
 
 	IsVisible  uint8 `gorm:"default:31" json:"-"`
 	IsEditable uint8 `gorm:"default:31" json:"-"`
+}
+
+func (a *Attachment) TableName() string {
+	return "attachment"
 }
 
 func (a *Attachment) VisibilityList(fullAccess bool) []string {

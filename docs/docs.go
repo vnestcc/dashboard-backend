@@ -929,6 +929,11 @@ const docTemplate = `{
         },
         "/company/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns the current user's company information, including selectable related data sets",
                 "produces": [
                     "application/json"
@@ -1241,6 +1246,11 @@ const docTemplate = `{
         },
         "/manage/company/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns the specified company's information, including selectable related data sets (admin only).",
                 "produces": [
                     "application/json"

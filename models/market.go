@@ -8,8 +8,8 @@ import (
 
 type MarketTraction struct {
 	gorm.Model
-	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
 	NewCustomers        string `json:"new_customers"`

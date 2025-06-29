@@ -539,6 +539,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Get company details
       tags:
       - company
@@ -985,6 +987,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Get company details (Admin)
       tags:
       - admin

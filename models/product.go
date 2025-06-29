@@ -8,8 +8,8 @@ import (
 
 type ProductDevelopment struct {
 	gorm.Model
-	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
-	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version,unique"`
+	CompanyID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
+	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
 	MilestonesAchieved  string `json:"milestones_achieved"`
@@ -25,6 +25,10 @@ type ProductDevelopment struct {
 
 	IsVisible  uint16 `gorm:"default:1023" json:"-"`
 	IsEditable uint16 `gorm:"default:1023" json:"-"`
+}
+
+func (p *ProductDevelopment) TableName() string {
+	return "product"
 }
 
 func (p *ProductDevelopment) VisibilityList(fullAccess bool) []string {

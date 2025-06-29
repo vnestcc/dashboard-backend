@@ -15,6 +15,7 @@ import (
 // @Summary      Get company details (Admin)
 // @Description  Returns the specified company's information, including selectable related data sets (admin only).
 // @Tags         admin
+// @Security     BearerAuth
 // @Produce      json
 // @Param        id       path   int     true  "Company ID"
 // @Param        data     query  string  false "Which related data to include"  Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements)

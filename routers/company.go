@@ -12,7 +12,7 @@ func loadCompanies(r *gin.RouterGroup) {
 	companyRouter.GET("/me", append(middleware.UserMiddleware, company.UserCompany)...)
 	companyRouter.GET("/:id", middleware.JWTVerifyHandler, company.GetCompanyByID)
 	companyRouter.GET("/list", company.ListCompany)
-	companyRouter.GET("/quarters/:id", middleware.JWTVerifyHandler, company.ListQuater)
+	companyRouter.GET("/quarters/:id", company.ListQuater)
 	companyRouter.POST("/quarters/add", append(middleware.UserMiddleware, company.AddQuarter)...)
 	companyRouter.POST("/create", append(middleware.UserMiddleware, company.CreateCompany)...)
 	companyRouter.PUT("/edit", append(middleware.UserMiddleware, company.EditCompany)...)

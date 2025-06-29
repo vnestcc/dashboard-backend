@@ -127,7 +127,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.FinancialHealth](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "FinancialHealths") {
+		if respondWithErrorIfNeeded(ctx, err, "finance") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -140,7 +140,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.MarketTraction](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "MarketTractions") {
+		if respondWithErrorIfNeeded(ctx, err, "market") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -153,7 +153,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.UnitEconomics](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "UnitEconomics") {
+		if respondWithErrorIfNeeded(ctx, err, "economics") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -166,7 +166,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.TeamPerformance](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "TeamPerformances") {
+		if respondWithErrorIfNeeded(ctx, err, "teamperf") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -179,7 +179,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.FundraisingStatus](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "FundraisingStatuses") {
+		if respondWithErrorIfNeeded(ctx, err, "fund") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -192,7 +192,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.CompetitiveLandscape](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "CompetitiveLandscapes") {
+		if respondWithErrorIfNeeded(ctx, err, "competitve") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -205,7 +205,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.OperationalEfficiency](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "OperationalEfficiencies") {
+		if respondWithErrorIfNeeded(ctx, err, "operational") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -218,7 +218,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.RiskManagement](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "RiskManagements") {
+		if respondWithErrorIfNeeded(ctx, err, "risk") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -231,7 +231,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.AdditionalInfo](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "AdditionalInfos") {
+		if respondWithErrorIfNeeded(ctx, err, "additional") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -244,7 +244,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.SelfAssessment](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "SelfAssessments") {
+		if respondWithErrorIfNeeded(ctx, err, "assessment") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -257,7 +257,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		} else {
 			results, quarterID, err = queryByQuarterID[models.Attachment](db, companyID, quarter, year, tableName)
 		}
-		if respondWithErrorIfNeeded(ctx, err, "Attachments") {
+		if respondWithErrorIfNeeded(ctx, err, "attachment") {
 			return
 		}
 		filterAndRespond(ctx, results, quarterID, fullAccess)
@@ -275,6 +275,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 // GetCompanyByID godoc
 // @Summary      Get company details
 // @Description  Returns the current user's company information, including selectable related data sets
+// @Security     BearerAuth
 // @Tags         company
 // @Produce      json
 // @Param        id       path   int     true  "Company ID"
