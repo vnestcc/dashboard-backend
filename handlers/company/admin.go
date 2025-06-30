@@ -1,7 +1,10 @@
 package company
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +12,7 @@ import (
 	"github.com/vnestcc/dashboard/models"
 	"github.com/vnestcc/dashboard/utils"
 	"github.com/vnestcc/dashboard/utils/values"
+	"gorm.io/gorm"
 )
 
 // GetCompanyByIDAdmin godoc
@@ -30,6 +34,67 @@ func GetCompanyByIDAdmin(ctx *gin.Context) {
 	// dead function just a place holder for docs
 }
 
+func handleEditAdmin[T any](ctx *gin.Context, db *gorm.DB, quarterObj *models.Quarter, table string, auditLog *logrus.Entry) {
+	var req T
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "invalid_request_body",
+			"table":  table,
+		}).Warn("Invalid request body")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	var model T
+	if err := db.Model(&model).Where("quarter_id = ? AND company_id = ?", quarterObj.ID, quarterObj.CompanyID).Order("version DESC").First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			auditLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"error":  "record_not_found",
+				"table":  table,
+			}).Warn("No existing record found to update")
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+			return
+		}
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  err.Error(),
+			"table":  table,
+		}).Error("Database error while querying for record")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	if err := db.Model(&model).Updates(req).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  err.Error(),
+			"table":  table,
+		}).Error("Failed to update record")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update record"})
+		return
+	}
+	v := reflect.ValueOf(model)
+	getID := func() uint {
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+		idField := v.FieldByName("ID")
+		if idField.IsValid() && idField.CanUint() {
+			return uint(idField.Uint())
+		}
+		return 0
+	}
+	auditLog.WithFields(logrus.Fields{
+		"status": "success",
+		"table":  table,
+		"id":     getID(),
+	}).Info("Record updated successfully")
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": fmt.Sprintf("%s updated by admin", table),
+		"id":      getID(),
+	})
+}
+
 // EditCompanyByID godoc
 // @Summary      Edit company details (Admin, versioned insert)
 // @Description  Allows admin to insert new versioned data for company or related quarter data. If `data=info` or omitted, updates company name, contact name, and contact email. Otherwise, allows versioned updates for specific company data types (such as finance, market, uniteconomics, etc) for a given quarter and year. The allowed types are: finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements. All data modifications will insert a new version for the specified quarter and year.
@@ -47,10 +112,9 @@ func GetCompanyByIDAdmin(ctx *gin.Context) {
 // @Failure      404  {object}  map[string]string  "Company or quarter not found"
 // @Failure      500  {object}  map[string]string  "Server/database error"
 // @Router       /manage/company/edit/{id} [put]
-// OPTIMIZE: whatever is written here is not meant for production. I pray for the server :pray:
-// NOTE: need auditing
+// TEST: need testing
 func EditCompanyByID(ctx *gin.Context) {
-	var db = values.GetDB()
+	db := values.GetDB()
 	idStr := ctx.Param("id")
 	idUint, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -58,15 +122,27 @@ func EditCompanyByID(ctx *gin.Context) {
 		return
 	}
 	companyID := uint(idUint)
-
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":         ctx.ClientIP(),
+		"type":       "audit",
+		"event":      "edit_company",
+		"company_id": companyID,
+	})
 	var company models.Company
 	if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "company_not_found",
+		}).Warn("Company not found")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
 		return
 	}
-
 	dataVals := ctx.Request.URL.Query()["data"]
 	if len(dataVals) > 1 {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "multiple_data_params",
+		}).Warn("More than one 'data' parameter supplied")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Only one 'data' query parameter allowed"})
 		return
 	}
@@ -76,6 +152,17 @@ func EditCompanyByID(ctx *gin.Context) {
 	}
 	quarter := ctx.Query("quarter")
 	yearStr := ctx.Query("year")
+	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
+	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "invalid_year",
+			"value":  yearStr,
+		}).Warn("Invalid year")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
+		return
+	}
+	year := uint(yearUint)
 	allowedData := map[string]string{
 		"info":          "",
 		"finance":       "FinancialHealths",
@@ -88,27 +175,32 @@ func EditCompanyByID(ctx *gin.Context) {
 		"risk":          "RiskManagements",
 		"additional":    "AdditionalInfos",
 		"self":          "SelfAssessments",
-		"attachements":  "Attachments",
+		"product":       "ProductDevelopment",
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {
+			auditLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"error":  "invalid_data_param",
+				"value":  data,
+			}).Warn("Invalid 'data' query parameter")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
 			return
 		}
 	}
-	yearUint, err := strconv.ParseUint(yearStr, 10, 32)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid year"})
-		return
-	}
-	year := uint(yearUint)
 	if data == "" || data == "info" {
 		var req struct {
 			Name         *string `json:"name"`
 			ContactName  *string `json:"contact_name"`
 			ContactEmail *string `json:"contact_email"`
 		}
+		infoLog := auditLog.WithField("table", "companies")
 		if err := ctx.ShouldBindJSON(&req); err != nil {
+			infoLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"error":  "invalid_request_body",
+				"detail": err.Error(),
+			}).Warn("Failed to parse request body")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
@@ -122,201 +214,80 @@ func EditCompanyByID(ctx *gin.Context) {
 			company.ContactEmail = *req.ContactEmail
 		}
 		if err := db.Save(&company).Error; err != nil {
+			infoLog.WithFields(logrus.Fields{
+				"status": "failure",
+				"error":  err.Error(),
+			}).Error("Failed to update company info")
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update company"})
 			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "Company updated successfully", "company": company})
+		infoLog.WithFields(logrus.Fields{
+			"status": "success",
+			"id":     company.ID,
+		}).Info("Company info updated successfully")
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Company updated successfully",
+			"company": company,
+		})
 		return
 	}
+	cacheKey := fmt.Sprintf("%d_%s_%d", companyID, quarter, year)
 	var quarterObj models.Quarter
-	if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
-		First(&quarterObj).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
-		return
+	if val, ok := QuarterCache.Get(cacheKey); ok {
+		quarterObj = val
+	} else {
+		if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).First(&quarterObj).Error; err != nil {
+			auditLog.WithFields(logrus.Fields{
+				"status":  "failure",
+				"error":   "quarter_not_found",
+				"quarter": quarter,
+				"year":    year,
+			}).Warn("Quarter not found for company")
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
+			return
+		}
+		QuarterCache.Set(cacheKey, quarterObj)
 	}
 	preloadField := allowedData[data]
 	if preloadField == "" {
+		auditLog.WithFields(logrus.Fields{
+			"status": "failure",
+			"error":  "no_editable_data_specified",
+		}).Warn("Preload field is empty")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No editable data specified"})
 		return
 	}
+	sectionLog := auditLog.WithFields(logrus.Fields{
+		"quarter": quarter,
+		"year":    year,
+		"table":   preloadField,
+	})
 	switch data {
 	case "finance":
-		var req []models.FinancialHealth
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.FinancialHealth{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "FinancialHealths versioned and inserted"})
+		handleEditAdmin[*models.FinancialHealth](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "market":
-		var req []models.MarketTraction
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.MarketTraction{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "MarketTractions versioned and inserted"})
+		handleEditAdmin[*models.MarketTraction](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "uniteconomics":
-		var req []models.UnitEconomics
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.UnitEconomics{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "UnitEconomics versioned and inserted"})
+		handleEditAdmin[*models.UnitEconomics](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "teamperf":
-		var req []models.TeamPerformance
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.TeamPerformance{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "TeamPerformances versioned and inserted"})
+		handleEditAdmin[*models.TeamPerformance](ctx, db, &quarterObj, preloadField, sectionLog)
+	case "product":
+		handleEditAdmin[*models.ProductDevelopment](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "fund":
-		var req []models.FundraisingStatus
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.FundraisingStatus{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "FundraisingStatuses versioned and inserted"})
+		handleEditAdmin[*models.FundraisingStatus](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "competitive":
-		var req []models.CompetitiveLandscape
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.CompetitiveLandscape{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "CompetitiveLandscapes versioned and inserted"})
+		handleEditAdmin[*models.CompetitiveLandscape](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "operation":
-		var req []models.OperationalEfficiency
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.OperationalEfficiency{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "OperationalEfficiencies versioned and inserted"})
+		handleEditAdmin[*models.OperationalEfficiency](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "risk":
-		var req []models.RiskManagement
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.RiskManagement{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "RiskManagements versioned and inserted"})
+		handleEditAdmin[*models.RiskManagement](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "additional":
-		var req []models.AdditionalInfo
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.AdditionalInfo{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "AdditionalInfos versioned and inserted"})
+		handleEditAdmin[*models.AdditionalInfo](ctx, db, &quarterObj, preloadField, sectionLog)
 	case "self":
-		var req []models.SelfAssessment
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.SelfAssessment{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "SelfAssessments versioned and inserted"})
-	case "attachements":
-		var req []models.Attachment
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-		for _, newObj := range req {
-			newObj.QuarterID = quarterObj.ID
-			var maxVersion int
-			db.Model(&models.Attachment{}).
-				Where("quarter_id = ?", quarterObj.ID).
-				Select("COALESCE(MAX(version),0)").Scan(&maxVersion)
-			newObj.Version = uint32(1)
-			db.Create(&newObj)
-		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "Attachments versioned and inserted"})
+		handleEditAdmin[*models.SelfAssessment](ctx, db, &quarterObj, preloadField, sectionLog)
 	default:
+		sectionLog.WithField("status", "failure").Warn("Unexpected data type after validation")
+		// attachments comes under upload
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data query parameter"})
 	}
 }

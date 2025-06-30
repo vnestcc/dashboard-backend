@@ -637,15 +637,21 @@ func EditCompany(ctx *gin.Context) {
 		return
 	}
 	var quarterObj models.Quarter
-	if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
-		First(&quarterObj).Error; err != nil {
-		auditLog.WithFields(logrus.Fields{
-			"status":  "failure",
-			"quarter": quarter,
-			"year":    year,
-		}).Warn("Quarter not found")
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
-		return
+	cacheKey := fmt.Sprintf("%d_%s_%d", company.ID, quarter, year)
+	if val, ok := QuarterCache.Get(cacheKey); ok {
+		quarterObj = val
+	} else {
+		if err := db.Where("company_id = ? AND quarter = ? AND year = ?", companyID, quarter, year).
+			First(&quarterObj).Error; err != nil {
+			auditLog.WithFields(logrus.Fields{
+				"status":  "failure",
+				"quarter": quarter,
+				"year":    year,
+			}).Warn("Quarter not found")
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Quarter not found"})
+			return
+		}
+		QuarterCache.Set(cacheKey, quarterObj)
 	}
 	preloadField := allowedData[data]
 	if preloadField == "" {
