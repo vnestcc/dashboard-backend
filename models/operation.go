@@ -27,6 +27,24 @@ func (o *OperationalEfficiency) TableName() string {
 	return "operational"
 }
 
+func (o *OperationalEfficiency) EditableList() []string {
+	fields := []string{
+		"operational_changes",
+		"impact_metrics",
+		"optimization_areas",
+		"operational_bottlenecks",
+		"infrastructure_capacity",
+		"scaling_plans",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if o.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (o *OperationalEfficiency) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"operational_changes",

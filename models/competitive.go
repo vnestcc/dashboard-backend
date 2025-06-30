@@ -27,6 +27,24 @@ func (c *CompetitiveLandscape) TableName() string {
 	return "competitive"
 }
 
+func (c *CompetitiveLandscape) EditableList() []string {
+	fields := []string{
+		"new_competitors",
+		"competitor_strategies",
+		"market_shifts",
+		"differentiators",
+		"threats",
+		"defensive_strategies",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if c.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (c *CompetitiveLandscape) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"new_competitors",

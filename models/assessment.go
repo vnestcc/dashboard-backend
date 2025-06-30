@@ -59,6 +59,26 @@ func (s *SelfAssessment) TableName() string {
 	return "assessment"
 }
 
+func (s *SelfAssessment) EditableList() []string {
+	fields := []string{
+		"financial_rating",
+		"market_rating",
+		"product_rating",
+		"team_rating",
+		"operational_rating",
+		"overall_rating",
+		"priorities",
+		"incubator_support",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if s.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (s *SelfAssessment) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"financial_rating",

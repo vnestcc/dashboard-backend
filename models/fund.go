@@ -28,6 +28,25 @@ func (f *FundraisingStatus) TableName() string {
 	return "fund"
 }
 
+func (f *FundraisingStatus) EditableList() []string {
+	fields := []string{
+		"last_round",
+		"current_investors",
+		"investor_relations",
+		"next_round",
+		"target_amount",
+		"investor_pipeline",
+		"valuation_expectations",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if f.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (f *FundraisingStatus) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"last_round",

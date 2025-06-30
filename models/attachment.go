@@ -26,6 +26,23 @@ func (a *Attachment) TableName() string {
 	return "attachment"
 }
 
+func (a *Attachment) EditableList() []string {
+	fields := []string{
+		"financial_statements",
+		"pitch_deck",
+		"product_roadmap",
+		"performance_dashboard",
+		"org_chart",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if a.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (a *Attachment) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"financial_statements",

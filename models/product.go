@@ -31,6 +31,28 @@ func (p *ProductDevelopment) TableName() string {
 	return "product"
 }
 
+func (p *ProductDevelopment) EditableList() []string {
+	fields := []string{
+		"milestones_achieved",
+		"milestones_missed",
+		"roadmap",
+		"active_users",
+		"engagement_metrics",
+		"nps",
+		"feature_adoption",
+		"technical_challenges",
+		"technical_debt",
+		"product_bottlenecks",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if p.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (p *ProductDevelopment) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"milestones_achieved",

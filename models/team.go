@@ -29,6 +29,26 @@ func (t *TeamPerformance) TableName() string {
 	return "teamperf"
 }
 
+func (t *TeamPerformance) EditableList() []string {
+	fields := []string{
+		"team_size",
+		"new_hires",
+		"turnover",
+		"vacant_positions",
+		"leadership_alignment",
+		"team_strengths",
+		"skill_gaps",
+		"development_initiatives",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if t.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (t *TeamPerformance) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"team_size",

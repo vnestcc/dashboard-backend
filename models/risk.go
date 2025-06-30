@@ -29,6 +29,26 @@ func (r *RiskManagement) TableName() string {
 	return "risk"
 }
 
+func (r *RiskManagement) EditableList() []string {
+	fields := []string{
+		"regulatory_changes",
+		"compliance_status",
+		"regulatory_concerns",
+		"security_audits",
+		"data_protection",
+		"security_incidents",
+		"key_dependencies",
+		"contingency_plans",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if r.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (r *RiskManagement) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"regulatory_changes",

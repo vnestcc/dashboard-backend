@@ -34,6 +34,25 @@ type MarketingBreakdown struct {
 	CAC             string `json:"cac"`
 }
 
+func (u *UnitEconomics) EditableList() []string {
+	fields := []string{
+		"cac",
+		"cac_change",
+		"ltv",
+		"ltv_ratio",
+		"cac_payback",
+		"arpu",
+		"marketing_breakdowns",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if u.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (u *UnitEconomics) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"cac",

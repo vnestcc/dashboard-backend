@@ -25,6 +25,26 @@ type AdditionalInfo struct {
 	IsEditable uint8 `gorm:"default:255"`
 }
 
+func (a *AdditionalInfo) EditableList() []string {
+	fields := []string{
+		"growth_challenges",
+		"support_needed",
+		"policy_changes",
+		"policy_impact",
+		"mitigation_strategies",
+		"new_initiatives",
+		"initiative_progress",
+		"business_model_adjustments",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if a.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (a *AdditionalInfo) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"growth_challenges",

@@ -40,6 +40,28 @@ func (f *FinancialHealth) TableName() string {
 	return "finance"
 }
 
+func (f *FinancialHealth) EditableList() []string {
+	fields := []string{
+		"cash_balance",
+		"burn_rate",
+		"cash_runway",
+		"burn_rate_change",
+		"quarterly_revenue",
+		"revenue_growth",
+		"gross_margin",
+		"net_margin",
+		"profitability_timeline",
+		"revenue_breakdowns",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if f.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (f *FinancialHealth) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"cash_balance",

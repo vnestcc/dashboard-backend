@@ -391,6 +391,7 @@ func GetCompanyByID(ctx *gin.Context) {
 		"additional":    "additional",
 		"self":          "assessment",
 		"attachements":  "attachement",
+		"product":       "product",
 	}
 	if data != "" {
 		if _, ok := allowedData[data]; !ok {

@@ -33,6 +33,30 @@ func (m *MarketTraction) TableName() string {
 	return "market"
 }
 
+func (m *MarketTraction) EditableList() []string {
+	fields := []string{
+		"new_customers",
+		"total_customers",
+		"customer_growth",
+		"retention_rate",
+		"churn_rate",
+		"pipeline_value",
+		"conversion_rate",
+		"sales_cycle",
+		"sales_process_changes",
+		"market_share",
+		"market_share_change",
+		"market_trends",
+	}
+	var visibleFields []string
+	for i, field := range fields {
+		if m.IsEditable&(1<<i) != 0 {
+			visibleFields = append(visibleFields, field)
+		}
+	}
+	return visibleFields
+}
+
 func (m *MarketTraction) VisibilityList(fullAccess bool) []string {
 	fields := []string{
 		"new_customers",
