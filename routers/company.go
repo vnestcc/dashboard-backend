@@ -20,4 +20,6 @@ func loadCompanies(r *gin.RouterGroup) {
 	companyRouter.POST("/join/:id", append(middleware.UserMiddleware, company.JoinCompany)...)
 	companyRouter.GET("/perms/:id/visible")
 	companyRouter.GET("/perms/editable")
+
+	companyRouter.GET("/metrics/:id", middleware.JWTVerifyHandler, company.CompanyMetrics)
 }

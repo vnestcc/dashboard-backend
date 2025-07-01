@@ -781,6 +781,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/company/metrics/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a specific company KPI or metric series (e.g. funds raised, revenue growth, runway, user growth, milestones, CAC/LTV, market share, KPIs, etc) by key.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "company"
+                ],
+                "summary": "Get company metric time series or snapshot",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "funds_raised",
+                            "revenue_growth",
+                            "revenue_breakdown",
+                            "runway",
+                            "user_growth",
+                            "milestones",
+                            "cac_ltv",
+                            "market_share",
+                            "kpis"
+                        ],
+                        "type": "string",
+                        "description": "Which metric to return",
+                        "name": "key",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success (company_id and metrics array/object)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request (missing or invalid params)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/company/quarters/add": {
             "post": {
                 "security": [

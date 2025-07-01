@@ -815,6 +815,63 @@ paths:
       summary: Get current user's company
       tags:
       - company
+  /company/metrics/{id}:
+    get:
+      description: Returns a specific company KPI or metric series (e.g. funds raised,
+        revenue growth, runway, user growth, milestones, CAC/LTV, market share, KPIs,
+        etc) by key.
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Which metric to return
+        enum:
+        - funds_raised
+        - revenue_growth
+        - revenue_breakdown
+        - runway
+        - user_growth
+        - milestones
+        - cac_ltv
+        - market_share
+        - kpis
+        in: query
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success (company_id and metrics array/object)
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request (missing or invalid params)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get company metric time series or snapshot
+      tags:
+      - company
   /company/quarters/{id}:
     get:
       description: Lists all quarters for the specified company
