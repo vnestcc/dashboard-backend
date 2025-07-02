@@ -65,8 +65,8 @@ type fundsRaisedMetric struct {
 }
 
 type revenueMetric struct {
-	QuarterlyRevenue string    `json:"quarterly_revenue"`
-	RevenueGrowth    string    `json:"revenue_growth"`
+	QuarterlyRevenue uint64    `json:"quarterly_revenue"`
+	RevenueGrowth    uint64    `json:"revenue_growth"`
 	Quarter          string    `json:"quarter"`
 	Year             uint      `json:"year"`
 	Date             time.Time `json:"date"`
@@ -104,26 +104,26 @@ type runwayMetric struct {
 }
 
 type userGrowthMetric struct {
-	ActiveUsers    string    `json:"active_users"`
-	TotalCustomers string    `json:"total_customers"`
+	ActiveUsers    uint64    `json:"active_users"`
+	TotalCustomers uint64    `json:"total_customers"`
 	Quarter        string    `json:"quarter"`
 	Year           uint      `json:"year"`
 	Date           time.Time `json:"date"`
 }
 
 type milestoneRow struct {
-	MilestonesAchieved string `json:"milestones_achieved"`
-	Roadmap            string `json:"roadmap"`
-	Quarter            string `json:"quarter"`
-	Year               uint   `json:"year"`
+	MilestonesAchieved uint64   `json:"milestones_achieved"`
+	Roadmap            []string `json:"roadmap"`
+	Quarter            string   `json:"quarter"`
+	Year               uint     `json:"year"`
 }
 
 type cacLtvMetric struct {
 	Timestamp time.Time `json:"timestamp"`
 	Quarter   string    `json:"quarter"`
 	Year      uint      `json:"year"`
-	CAC       string    `json:"cac"`
-	LTV       string    `json:"ltv"`
+	CAC       uint64    `json:"cac"`
+	LTV       uint64    `json:"ltv"`
 	LTVRatio  string    `json:"ltv_ratio"`
 }
 
@@ -131,8 +131,8 @@ type kpi struct {
 	Timestamp      time.Time `json:"timestamp"`
 	Quarter        string    `json:"quarter"`
 	Year           uint      `json:"year"`
-	ActiveUsers    string    `json:"active_users"`
-	ConversionRate string    `json:"conversion_rate"`
-	ChurnRate      string    `json:"churn_rate"`
-	GrossMargin    string    `json:"gross_margin"`
+	ActiveUsers    uint64    `json:"active_users"`
+	ConversionRate uint64    `json:"conversion_rate"`
+	ChurnRate      uint64    `json:"churn_rate"`
+	GrossMargin    uint64    `json:"gross_margin"`
 }

@@ -12,12 +12,12 @@ type UnitEconomics struct {
 	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	CAC        string `json:"cac"`
+	CAC        uint64 `json:"cac"`
 	CACChange  string `json:"cac_change"`
-	LTV        string `json:"ltv"`
+	LTV        uint64 `json:"ltv"`
 	LTVRatio   string `json:"ltv_ratio"`
-	CACPayback string `json:"cac_payback"`
-	ARPU       string `json:"arpu"`
+	CACPayback uint64 `json:"cac_payback"`
+	ARPU       uint64 `json:"arpu"`
 
 	MarketingBreakdowns []MarketingBreakdown `json:"marketing_breakdowns"`
 

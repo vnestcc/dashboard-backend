@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -172,7 +171,7 @@ func handleDataSection(ctx *gin.Context, db *gorm.DB, companyID uint, quarter st
 		for _, ue := range results {
 			err := db.Model(ue).Association("MarketingBreakdowns").Find(&ue.MarketingBreakdowns)
 			if err != nil {
-				if respondWithErrorIfNeeded(ctx, err, "finance") {
+				if respondWithErrorIfNeeded(ctx, err, "economics") {
 					return
 				}
 			}
@@ -477,10 +476,6 @@ func GetCompanyByID(ctx *gin.Context) {
 	}).Info("Fetching company data section")
 	handleDataSection(ctx, db, companyID, quarter, year, table, fullAccess)
 }
-
-/*type MetricsStruct interface {
-
-}*/
 
 // CompanyMetrics godoc
 // @Summary      Get company metric time series or snapshot
@@ -859,17 +854,6 @@ func CompanyMetrics(ctx *gin.Context) {
 			}).Error("Failed to retrieve milestones data")
 			return
 		}
-		milestonesAchieved := []string{}
-		roadmap := []string{}
-		for _, row := range rows {
-			suffix := fmt.Sprintf("(%s %d)", row.Quarter, row.Year)
-			if trimmed := strings.TrimSpace(row.MilestonesAchieved); trimmed != "" {
-				milestonesAchieved = append(milestonesAchieved, fmt.Sprintf("%s %s", trimmed, suffix))
-			}
-			if trimmed := strings.TrimSpace(row.Roadmap); trimmed != "" {
-				roadmap = append(roadmap, fmt.Sprintf("%s %s", trimmed, suffix))
-			}
-		}
 		auditLog.WithFields(logrus.Fields{
 			"status":     "success",
 			"company_id": company.ID,
@@ -878,10 +862,7 @@ func CompanyMetrics(ctx *gin.Context) {
 		}).Info("Milestones data retrieved")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"milestones": gin.H{
-				"milestones_achieved": milestonesAchieved,
-				"roadmap":             roadmap,
-			},
+			"metrics":    rows,
 		})
 	case "cac_ltv":
 		var results []cacLtvMetric
@@ -925,7 +906,7 @@ func CompanyMetrics(ctx *gin.Context) {
 	case "market_share":
 		var result struct {
 			MarketShare    string `json:"market_share"`
-			TotalCustomers string `json:"total_customers"`
+			TotalCustomers uint64 `json:"total_customers"`
 		}
 		err := db.Raw(`
 		SELECT

@@ -13,12 +13,12 @@ type MarketTraction struct {
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
 	NewCustomers        string `json:"new_customers"`
-	TotalCustomers      string `json:"total_customers"`
-	CustomerGrowth      string `json:"customer_growth"`
-	RetentionRate       string `json:"retention_rate"`
-	ChurnRate           string `json:"churn_rate"`
+	TotalCustomers      uint64 `json:"total_customers"`
+	CustomerGrowth      uint64 `json:"customer_growth"`
+	RetentionRate       uint64 `json:"retention_rate"`
+	ChurnRate           uint64 `json:"churn_rate"`
 	PipelineValue       string `json:"pipeline_value"`
-	ConversionRate      string `json:"conversion_rate"`
+	ConversionRate      uint64 `json:"conversion_rate"`
 	SalesCycle          string `json:"sales_cycle"`
 	SalesProcessChanges string `json:"sales_process_changes"`
 	MarketShare         string `json:"market_share"`
