@@ -430,6 +430,7 @@ func handleEdit[T editableModel](
 			"error":  "invalid_request_body",
 			"table":  table,
 		}).Warn("Invalid request body")
+		fmt.Println(err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}

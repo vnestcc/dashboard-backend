@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -12,14 +13,14 @@ type TeamPerformance struct {
 	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	TeamSize               string   `json:"team_size"`
-	NewHires               string   `json:"new_hires"`
-	Turnover               string   `json:"turnover"`
-	VacantPositions        string   `json:"vacant_positions"`
-	LeadershipAlignment    string   `json:"leadership_alignment"`
-	TeamStrengths          []string `json:"team_strengths"`
-	SkillGaps              string   `json:"skill_gaps"`
-	DevelopmentInitiatives []string `json:"development_initiatives"`
+	TeamSize               string         `json:"team_size"`
+	NewHires               string         `json:"new_hires"`
+	Turnover               string         `json:"turnover"`
+	VacantPositions        string         `json:"vacant_positions"`
+	LeadershipAlignment    string         `json:"leadership_alignment"`
+	TeamStrengths          datatypes.JSON `json:"team_strengths"`
+	SkillGaps              string         `json:"skill_gaps"`
+	DevelopmentInitiatives datatypes.JSON `json:"development_initiatives"`
 
 	IsVisible  uint8 `gorm:"default:255" json:"-"`
 	IsEditable uint8 `gorm:"default:255" json:"-"`
