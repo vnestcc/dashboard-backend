@@ -788,14 +788,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a specific company KPI or metric series (e.g. funds raised, revenue growth, runway, user growth, milestones, CAC/LTV, market share, KPIs, etc) by key.",
+                "description": "Returns either a time series or snapshot of a specified company KPI or metric (such as funds raised, revenue growth, runway, user growth, milestones, CAC/LTV, market share, or other KPIs) based on the provided key.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "company"
                 ],
-                "summary": "Get company metric time series or snapshot",
+                "summary": "Retrieve company KPI or metric series",
                 "parameters": [
                     {
                         "type": "integer",
@@ -806,18 +806,22 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
-                            "funds_raised",
-                            "revenue_growth",
-                            "revenue_breakdown",
-                            "runway",
-                            "user_growth",
-                            "milestones",
-                            "cac_ltv",
-                            "market_share",
-                            "kpis"
+                            "info",
+                            "finance",
+                            "market",
+                            "uniteconomics",
+                            "teamperf",
+                            "fund",
+                            "competitive",
+                            "operation",
+                            "risk",
+                            "additional",
+                            "self",
+                            "attachements",
+                            "product"
                         ],
                         "type": "string",
-                        "description": "Which metric to return",
+                        "description": "Metric key",
                         "name": "key",
                         "in": "query",
                         "required": true
@@ -850,7 +854,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal error",
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {

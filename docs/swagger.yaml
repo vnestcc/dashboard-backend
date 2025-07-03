@@ -817,26 +817,30 @@ paths:
       - company
   /company/metrics/{id}:
     get:
-      description: Returns a specific company KPI or metric series (e.g. funds raised,
-        revenue growth, runway, user growth, milestones, CAC/LTV, market share, KPIs,
-        etc) by key.
+      description: Returns either a time series or snapshot of a specified company
+        KPI or metric (such as funds raised, revenue growth, runway, user growth,
+        milestones, CAC/LTV, market share, or other KPIs) based on the provided key.
       parameters:
       - description: Company ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Which metric to return
+      - description: Metric key
         enum:
-        - funds_raised
-        - revenue_growth
-        - revenue_breakdown
-        - runway
-        - user_growth
-        - milestones
-        - cac_ltv
-        - market_share
-        - kpis
+        - info
+        - finance
+        - market
+        - uniteconomics
+        - teamperf
+        - fund
+        - competitive
+        - operation
+        - risk
+        - additional
+        - self
+        - attachements
+        - product
         in: query
         name: key
         required: true
@@ -862,14 +866,14 @@ paths:
               type: string
             type: object
         "500":
-          description: Internal error
+          description: Internal server error
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Get company metric time series or snapshot
+      summary: Retrieve company KPI or metric series
       tags:
       - company
   /company/quarters/{id}:

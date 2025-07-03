@@ -56,83 +56,109 @@ type editableModel interface {
 	EditableFilter() error
 }
 
-type fundsRaisedMetric struct {
-	CashBalance string    `json:"cash_balance"`
-	LastRound   string    `json:"last_round"`
-	Quarter     string    `json:"quarter"`
-	Year        uint      `json:"year"`
-	Date        time.Time `json:"date"`
-}
-
-type revenueMetric struct {
-	QuarterlyRevenue uint64    `json:"quarterly_revenue"`
-	RevenueGrowth    uint64    `json:"revenue_growth"`
+type financeMetric struct {
+	QuarterlyRevenue string    `json:"quarterly_revenue"`
+	RevenueGrowth    string    `json:"revenue_growth"`
+	GrossMargin      string    `json:"gross_margin"`
+	NetMargin        string    `json:"net_margin"`
 	Quarter          string    `json:"quarter"`
 	Year             uint      `json:"year"`
 	Date             time.Time `json:"date"`
 }
 
-type revenueBreakdownRow struct {
-	Product    string    `json:"product"`
-	Revenue    string    `json:"revenue"`
-	Percentage string    `json:"percentage"`
-	Quarter    string    `json:"quarter"`
-	Year       uint      `json:"year"`
-	Date       time.Time `json:"date"`
+type marketMetric struct {
+	TotalCustomers string `json:"total_customers"`
+	CustomerGrowth string `json:"customer_growth"`
+	ConversionRate string `json:"conversion_rate"`
+	RetentionRate  string `json:"retention_rate"`
+	ChurnRate      string `json:"churn_rate"`
+	Quarter        string `json:"quarter"`
+	Year           string `json:"year"`
+	Date           string `json:"date"`
 }
 
-type Breakdown struct {
-	Product    string `json:"product"`
-	Revenue    string `json:"revenue"`
-	Percentage string `json:"percentage"`
+type economicsMetric struct {
+	CAC        string `json:"cac"`
+	CACPayback string `json:"cac_payback"`
+	ARPU       string `json:"arpu"`
+	LTV        string `json:"ltv"`
+	Quarter    string `json:"quarter"`
+	Year       string `json:"year"`
+	Date       string `json:"date"`
 }
 
-type QuarterRevenueBreakdown struct {
-	Quarter    string      `json:"quarter"`
-	Year       uint        `json:"year"`
-	Date       time.Time   `json:"date"`
-	Breakdowns []Breakdown `json:"breakdowns"`
+type productMetric struct {
+	ActiveUsers         string `json:"active_users"`
+	EngagementMetrics   string `json:"engagement_metrics"`
+	MilestonesAchieved  string `json:"milestones_achieved"`
+	MilestonesMissed    string `json:"milestones_missed"`
+	Roadmap             string `json:"roadmap"`
+	TechnicalChallenges string `json:"technical_challenges"`
+	ProductBottlenecks  string `json:"product_bottlenecks"`
+	Quarter             string `json:"quarter"`
+	Year                string `json:"year"`
+	Date                string `json:"date"`
 }
 
-type runwayMetric struct {
-	CashBalance string    `json:"cash_balance"`
-	BurnRate    string    `json:"burn_rate"`
-	CashRunway  string    `json:"cash_runway"`
-	Quarter     string    `json:"quarter"`
-	Year        uint      `json:"year"`
-	Date        time.Time `json:"date"`
+type teamperfMetric struct {
+	TeamStrengths          string `json:"team_strengths"`
+	DevelopmentInitiatives string `json:"development_initiatives"`
+	TeamSize               string `json:"team_size"`
+	NewHires               string `json:"new_hires"`
+	Turnover               string `json:"turnover"`
+	VacantPositions        string `json:"vacant_positions"`
+	LeadershipAlignment    string `json:"leadership_alignment"`
+	SkillGaps              string `json:"skill_gaps"`
+	Quarter                string `json:"quarter"`
+	Year                   string `json:"year"`
+	Date                   string `json:"date"`
 }
 
-type userGrowthMetric struct {
-	ActiveUsers    uint64    `json:"active_users"`
-	TotalCustomers uint64    `json:"total_customers"`
-	Quarter        string    `json:"quarter"`
-	Year           uint      `json:"year"`
-	Date           time.Time `json:"date"`
+type fundMetric struct {
+	LastRound             string `json:"last_round"`
+	TargetAmount          string `json:"target_amount"`
+	ValuationExpectations string `json:"valuation_expectations"`
+	Quarter               string `json:"quarter"`
+	Year                  string `json:"year"`
+	Date                  string `json:"date"`
 }
 
-type milestoneRow struct {
-	MilestonesAchieved uint64   `json:"milestones_achieved"`
-	Roadmap            []string `json:"roadmap"`
-	Quarter            string   `json:"quarter"`
-	Year               uint     `json:"year"`
+type operationalMetric struct {
+	InfrastructureCapacity string `json:"infrastructure_capacity"`
+	OperationalBottlenecks string `json:"operational_bottlenecks"`
+	OptimizationAreas      string `json:"optimization_areas"`
+	ScalingPlans           string `json:"scaling_plans"`
+	Quarter                string `json:"quarter"`
+	Year                   string `json:"year"`
+	Date                   string `json:"date"`
 }
 
-type cacLtvMetric struct {
-	Timestamp time.Time `json:"timestamp"`
-	Quarter   string    `json:"quarter"`
-	Year      uint      `json:"year"`
-	CAC       uint64    `json:"cac"`
-	LTV       uint64    `json:"ltv"`
-	LTVRatio  string    `json:"ltv_ratio"`
+type riskMetric struct {
+	StrategicRisks   string `json:"strategic_risks"`
+	OperationalRisks string `json:"operational_risks"`
+	FinancialRisks   string `json:"financial_risks"`
+	LegalRisks       string `json:"legal_risks"`
+	RegulatoryRisks  string `json:"regulatory_risks"`
+	MitigationPlans  string `json:"mitigation_plans"`
+	Quarter          string `json:"quarter"`
+	Year             string `json:"year"`
+	Date             string `json:"date"`
 }
 
-type kpi struct {
-	Timestamp      time.Time `json:"timestamp"`
-	Quarter        string    `json:"quarter"`
-	Year           uint      `json:"year"`
-	ActiveUsers    uint64    `json:"active_users"`
-	ConversionRate uint64    `json:"conversion_rate"`
-	ChurnRate      uint64    `json:"churn_rate"`
-	GrossMargin    uint64    `json:"gross_margin"`
+type additionalMetric struct {
+	CustomerFeedback  string `json:"customer_feedback"`
+	MarketTrends      string `json:"market_trends"`
+	RegulatoryChanges string `json:"regulatory_changes"`
+	NoteworthyEvents  string `json:"noteworthy_events"`
+	Quarter           string `json:"quarter"`
+	Year              string `json:"year"`
+	Date              string `json:"date"`
+}
+
+type assessmentMetric struct {
+	AssessmentText  string `json:"assessment_text"`
+	AssessmentScore string `json:"assessment_score"`
+	Quarter         string `json:"quarter"`
+	Year            string `json:"year"`
+	Date            string `json:"date"`
 }

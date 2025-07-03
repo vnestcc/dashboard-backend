@@ -16,10 +16,10 @@ type FinancialHealth struct {
 	BurnRate              string `json:"burn_rate"`
 	CashRunway            string `json:"cash_runway"`
 	BurnRateChange        string `json:"burn_rate_change"`
-	QuarterlyRevenue      uint64 `json:"quarterly_revenue"`
-	RevenueGrowth         uint64 `json:"revenue_growth"`
-	GrossMargin           uint64 `json:"gross_margin"`
-	NetMargin             uint64 `json:"net_margin"`
+	QuarterlyRevenue      string `json:"quarterly_revenue"`
+	RevenueGrowth         string `json:"revenue_growth"`
+	GrossMargin           string `json:"gross_margin"`
+	NetMargin             string `json:"net_margin"`
 	ProfitabilityTimeline string `json:"profitability_timeline"`
 
 	RevenueBreakdowns []RevenueBreakdown `json:"revenue_breakdowns"`

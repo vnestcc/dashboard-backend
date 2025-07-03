@@ -12,11 +12,11 @@ type ProductDevelopment struct {
 	QuarterID uint   `gorm:"not null;index:idx_unique_comp_quarter_version"`
 	Version   uint32 `gorm:"not null;index:idx_unique_comp_quarter_version,unique;default:1"`
 
-	MilestonesAchieved  uint64   `json:"milestones_achieved"`
-	MilestonesMissed    uint64   `json:"milestones_missed"`
+	MilestonesAchieved  string   `json:"milestones_achieved"`
+	MilestonesMissed    string   `json:"milestones_missed"`
 	Roadmap             []string `json:"roadmap"` // array of size 3
-	ActiveUsers         uint64   `json:"active_users"`
-	EngagementMetrics   uint64   `json:"engagement_metrics"`
+	ActiveUsers         string   `json:"active_users"`
+	EngagementMetrics   string   `json:"engagement_metrics"`
 	NPS                 string   `json:"nps"`
 	FeatureAdoption     string   `json:"feature_adoption"`
 	TechnicalChallenges []string `json:"technical_challenges"` // array of size 3

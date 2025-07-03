@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"sort"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -478,18 +477,18 @@ func GetCompanyByID(ctx *gin.Context) {
 }
 
 // CompanyMetrics godoc
-// @Summary      Get company metric time series or snapshot
-// @Description  Returns a specific company KPI or metric series (e.g. funds raised, revenue growth, runway, user growth, milestones, CAC/LTV, market share, KPIs, etc) by key.
-// @Security     BearerAuth
-// @Tags         company
-// @Produce      json
-// @Param        id    path   int     true  "Company ID"
-// @Param        key   query  string  true  "Which metric to return" Enums(funds_raised, revenue_growth, revenue_breakdown, runway, user_growth, milestones, cac_ltv, market_share, kpis)
-// @Success      200   {object}  map[string]any  "Success (company_id and metrics array/object)"
-// @Failure      400   {object}  map[string]string  "Bad request (missing or invalid params)"
-// @Failure      404   {object}  map[string]string  "Not found"
-// @Failure      500   {object}  map[string]string  "Internal error"
-// @Router       /company/metrics/{id} [get]
+// @Summary     Retrieve company KPI or metric series
+// @Description Returns either a time series or snapshot of a specified company KPI or metric (such as funds raised, revenue growth, runway, user growth, milestones, CAC/LTV, market share, or other KPIs) based on the provided key.
+// @Security    BearerAuth
+// @Tags        company
+// @Produce     json
+// @Param       id   path   int    true  "Company ID"
+// @Param       key  query  string true  "Metric key" Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements, product)
+// @Success     200  {object} map[string]any          "Success (company_id and metrics array/object)"
+// @Failure     400  {object} map[string]string       "Bad request (missing or invalid params)"
+// @Failure     404  {object} map[string]string       "Not found"
+// @Failure     500  {object} map[string]string       "Internal server error"
+// @Router      /company/metrics/{id} [get]
 func CompanyMetrics(ctx *gin.Context) {
 	db := values.GetDB()
 	auditLog := utils.Logger.WithFields(logrus.Fields{
@@ -541,70 +540,14 @@ func CompanyMetrics(ctx *gin.Context) {
 	}
 	key := keys[0]
 	switch key {
-	case "funds_raised":
-		var results []fundsRaisedMetric
-		if err := db.Raw(`
-		SELECT
-			fin.cash_balance,
-			fun.last_round,
-			qua.quarter,
-			qua.year,
-			qua.date
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM finance
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) fin
-		JOIN (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM fund
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) fun ON fin.quarter_id = fun.quarter_id
-		JOIN quarters qua ON fin.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID, company.ID).Scan(&results).Error; err != nil {
-			logLevel := logrus.ErrorLevel
-			reason := "db_error"
-			status := "failure"
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
-				reason = "record_not_found"
-				logLevel = logrus.WarnLevel
-			} else {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
-			}
-			entry := auditLog.WithFields(logrus.Fields{
-				"status":     status,
-				"reason":     reason,
-				"company_id": company.ID,
-				"error":      err.Error(),
-				"key":        key,
-			})
-			if logLevel == logrus.WarnLevel {
-				entry.Warn("Funds raised query returned no data")
-			} else {
-				entry.Error("Failed to retrieve funds raised metrics")
-			}
-			return
-		}
-		auditLog.WithFields(logrus.Fields{
-			"status":     "success",
-			"company_id": company.ID,
-			"key":        key,
-			"rows":       len(results),
-		}).Info("Funds raised metrics retrieved successfully")
-		ctx.JSON(http.StatusOK, gin.H{
-			"company_id": company.ID,
-			"metrics":    results,
-		})
-	case "revenue_growth":
-		var results []revenueMetric
+	case "finance":
+		var results []financeMetric
 		if err := db.Raw(`
 		SELECT
     	fin.quarterly_revenue,
 	    fin.revenue_growth,
+			fin.gross_margin,
+			fin.net_margin,
   	  qua.quarter,
     	qua.year,
 	    qua.date
@@ -635,9 +578,9 @@ func CompanyMetrics(ctx *gin.Context) {
 				"error":      err.Error(),
 			})
 			if logLevel == logrus.WarnLevel {
-				entry.Warn("Revenue growth query returned no data")
+				entry.Warn("Finance query returned no data")
 			} else {
-				entry.Error("Failed to retrieve revenue growth metrics")
+				entry.Error("Failed to retrieve finance metrics")
 			}
 			return
 		}
@@ -646,99 +589,34 @@ func CompanyMetrics(ctx *gin.Context) {
 			"company_id": company.ID,
 			"key":        key,
 			"rows":       len(results),
-		}).Info("Revenue growth metrics retrieved successfully")
+		}).Info("Finance metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
 			"metrics":    results,
 		})
-	case "revenue_breakdown":
-		var rows []revenueBreakdownRow
-		err := db.Raw(`
-		SELECT
-			rb.product,
-			rb.revenue,
-			rb.percentage,
-			qua.quarter,
-			qua.year,
-			qua.date
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM finance
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) AS fin
-		JOIN revenue_breakdowns rb ON rb.financial_health_id = fin.id
-		JOIN quarters qua ON fin.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID).Scan(&rows).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Query failed"})
-			auditLog.WithFields(logrus.Fields{
-				"status":     "failure",
-				"company_id": company.ID,
-				"key":        key,
-				"error":      err.Error(),
-			}).Error("Failed to retrieve revenue breakdown metrics")
-			return
-		}
-		grouped := make(map[string]*QuarterRevenueBreakdown)
-		for _, row := range rows {
-			key := fmt.Sprintf("%s-%d", row.Quarter, row.Year)
-			if _, exists := grouped[key]; !exists {
-				grouped[key] = &QuarterRevenueBreakdown{
-					Quarter:    row.Quarter,
-					Year:       row.Year,
-					Date:       row.Date,
-					Breakdowns: []Breakdown{},
-				}
-			}
-			grouped[key].Breakdowns = append(grouped[key].Breakdowns, Breakdown{
-				Product:    row.Product,
-				Revenue:    row.Revenue,
-				Percentage: row.Percentage,
-			})
-		}
-		var results []QuarterRevenueBreakdown
-		for _, v := range grouped {
-			results = append(results, *v)
-		}
-		sort.Slice(results, func(i, j int) bool {
-			if results[i].Year == results[j].Year {
-				return results[i].Quarter < results[j].Quarter
-			}
-			return results[i].Year < results[j].Year
-		})
-		auditLog.WithFields(logrus.Fields{
-			"status":     "success",
-			"company_id": company.ID,
-			"key":        key,
-			"rows":       len(results),
-		}).Info("Grouped revenue breakdowns retrieved")
 
-		ctx.JSON(http.StatusOK, gin.H{
-			"company_id": company.ID,
-			"metrics":    results,
-		})
-	case "runway":
-		var results []runwayMetric
-		err := db.Raw(`
-		SELECT
-			fin.cash_balance,
-			fin.burn_rate,
-			fin.cash_runway,
-			qua.quarter,
-			qua.year,
-			qua.date
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM finance
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) AS fin
-		JOIN quarters qua ON fin.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID).Scan(&results).Error
-		if err != nil {
+	case "market":
+		var metrics []marketMetric
+		if err := db.Raw(`
+        SELECT 
+            m.total_customers, 
+            m.customer_growth, 
+            m.conversion_rate, 
+            m.retention_rate, 
+            m.churn_rate, 
+            q.quarter, 
+            q.year, 
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM market
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) m
+        JOIN quarters q ON m.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
 			logLevel := logrus.ErrorLevel
 			reason := "db_error"
 			status := "failure"
@@ -757,9 +635,9 @@ func CompanyMetrics(ctx *gin.Context) {
 				"error":      err.Error(),
 			})
 			if logLevel == logrus.WarnLevel {
-				entry.Warn("Runway query returned no data")
+				entry.Warn("Market query returned no data")
 			} else {
-				entry.Error("Failed to retrieve runway metrics")
+				entry.Error("Failed to retrieve market metrics")
 			}
 			return
 		}
@@ -767,227 +645,457 @@ func CompanyMetrics(ctx *gin.Context) {
 			"status":     "success",
 			"company_id": company.ID,
 			"key":        key,
-			"rows":       len(results),
-		}).Info("Runway metrics retrieved successfully")
+			"rows":       len(metrics),
+		}).Info("Market metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"metrics":    results,
+			"metrics":    metrics,
 		})
-	case "user_growth":
-		var results []userGrowthMetric
-		err := db.Raw(`
-		SELECT
-			pro.active_users,
-			mark.total_customers,
-			qua.quarter,
-			qua.year,
-			qua.date
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM product
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) AS pro
-		JOIN (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM market
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) AS mark ON pro.quarter_id = mark.quarter_id
-		JOIN quarters qua ON pro.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID, company.ID).Scan(&results).Error
-		if err != nil {
-			status := "failure"
-			reason := "db_error"
+	case "economics":
+		var metrics []economicsMetric
+		if err := db.Raw(`
+        SELECT 
+            e.cac, 
+            e.cac_payback, 
+            e.arpu, 
+            e.ltv, 
+            q.quarter, 
+            q.year, 
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM economics
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) e
+        JOIN quarters q ON e.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
 			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
 				reason = "record_not_found"
 				logLevel = logrus.WarnLevel
 			} else {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server error"})
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
 			}
-			auditLog.WithFields(logrus.Fields{
+			entry := auditLog.WithFields(logrus.Fields{
 				"status":     status,
 				"reason":     reason,
 				"company_id": company.ID,
 				"key":        key,
 				"error":      err.Error(),
-			}).Log(logLevel, "Failed to retrieve user growth metrics")
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Economics query returned no data")
+			} else {
+				entry.Error("Failed to retrieve economics metrics")
+			}
 			return
 		}
 		auditLog.WithFields(logrus.Fields{
 			"status":     "success",
 			"company_id": company.ID,
 			"key":        key,
-			"rows":       len(results),
-		}).Info("User growth metrics retrieved")
+			"rows":       len(metrics),
+		}).Info("Economics metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"metrics":    results,
+			"metrics":    metrics,
 		})
-	case "milestones":
-		var rows []milestoneRow
-		err := db.Raw(`
-		SELECT
-			pro.milestones_achieved,
-			pro.roadmap,
-			qua.quarter,
-			qua.year
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM product
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) AS pro
-		JOIN quarters qua ON pro.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID).Scan(&rows).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve milestones"})
-			auditLog.WithFields(logrus.Fields{
-				"status":     "failure",
+	case "product":
+		var metrics []productMetric
+		if err := db.Raw(`
+        SELECT 
+            p.active_users, 
+            p.engagement_metrics, 
+            p.milestones_achieved, 
+            p.milestones_missed, 
+            p.roadmap, 
+            p.technical_challenges, 
+            p.product_bottlenecks, 
+            q.quarter, 
+            q.year, 
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM product
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) p
+        JOIN quarters q ON p.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
 				"company_id": company.ID,
 				"key":        key,
 				"error":      err.Error(),
-			}).Error("Failed to retrieve milestones data")
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Product query returned no data")
+			} else {
+				entry.Error("Failed to retrieve product metrics")
+			}
 			return
 		}
 		auditLog.WithFields(logrus.Fields{
 			"status":     "success",
 			"company_id": company.ID,
 			"key":        key,
-			"rows":       len(rows),
-		}).Info("Milestones data retrieved")
+			"rows":       len(metrics),
+		}).Info("Product metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"metrics":    rows,
+			"metrics":    metrics,
 		})
-	case "cac_ltv":
-		var results []cacLtvMetric
-		err := db.Raw(`
-		SELECT
-			qua.date AS timestamp,
-			qua.quarter,
-			qua.year,
-			eco.cac,
-			eco.ltv,
-			eco.ltv_ratio
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM economics
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) eco
-		JOIN quarters qua ON eco.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID).Scan(&results).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve CAC/LTV data"})
-			auditLog.WithFields(logrus.Fields{
-				"status":     "failure",
+	case "teamperf":
+		var metrics []teamperfMetric
+		if err := db.Raw(`
+				SELECT 
+						t.team_strengths,
+						t.development_initiatives,
+						t.team_size,
+						t.new_hires,
+						t.turnover,
+						t.vacant_positions,
+						t.leadership_alignment,
+						t.skill_gaps,
+						q.quarter,
+						q.year,
+						q.date
+				FROM (
+						SELECT DISTINCT ON (quarter_id) *
+						FROM teamperf
+						WHERE company_id = ?
+						ORDER BY quarter_id, version DESC
+				) t
+				JOIN quarters q ON t.quarter_id = q.id
+				WHERE q.company_id = ?
+				ORDER BY q.year, q.quarter ASC
+		`, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
 				"company_id": company.ID,
 				"key":        key,
 				"error":      err.Error(),
-			}).Error("Failed to retrieve CAC/LTV data")
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Teamperf query returned no data")
+			} else {
+				entry.Error("Failed to retrieve teamperf metrics")
+			}
 			return
 		}
 		auditLog.WithFields(logrus.Fields{
 			"status":     "success",
 			"company_id": company.ID,
 			"key":        key,
-			"rows":       len(results),
-		}).Info("CAC/LTV data retrieved")
+			"rows":       len(metrics),
+		}).Info("Teamperf metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"metrics":    results,
+			"metrics":    metrics,
 		})
-	case "market_share":
-		var result struct {
-			MarketShare    string `json:"market_share"`
-			TotalCustomers uint64 `json:"total_customers"`
-		}
-		err := db.Raw(`
-		SELECT
-			MAX(market_share) AS market_share,
-			MAX(total_customers) AS total_customers
-		FROM market
-		WHERE company_id = ?
-	`, company.ID).Scan(&result).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve market share"})
-			auditLog.WithFields(logrus.Fields{
-				"status":     "failure",
+	case "fund":
+		var metrics []fundMetric
+		if err := db.Raw(`
+        SELECT 
+            f.last_round,
+            f.target_amount,
+            f.valuation_expectations,
+            q.quarter,
+            q.year,
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM fund
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) f
+        JOIN quarters q ON f.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
 				"company_id": company.ID,
 				"key":        key,
 				"error":      err.Error(),
-			}).Error("Failed to retrieve market share metrics")
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Fund query returned no data")
+			} else {
+				entry.Error("Failed to retrieve fund metrics")
+			}
 			return
 		}
 		auditLog.WithFields(logrus.Fields{
 			"status":     "success",
 			"company_id": company.ID,
 			"key":        key,
-		}).Info("Market share metrics retrieved")
+			"rows":       len(metrics),
+		}).Info("Fund metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"market_share": gin.H{
-				"market_share":    result.MarketShare,
-				"total_customers": result.TotalCustomers,
-			},
+			"metrics":    metrics,
 		})
-	case "kpis":
-		var results []kpi
-		err := db.Raw(`
-		SELECT
-			qua.date AS timestamp,
-			qua.quarter,
-			qua.year,
-			pro.active_users,
-			mar.conversion_rate,
-			mar.churn_rate,
-			fin.gross_margin
-		FROM (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM product
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) pro
-		JOIN (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM market
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) mar ON pro.quarter_id = mar.quarter_id
-		JOIN (
-			SELECT DISTINCT ON (quarter_id) *
-			FROM finance
-			WHERE company_id = ?
-			ORDER BY quarter_id, version DESC
-		) fin ON pro.quarter_id = fin.quarter_id
-		JOIN quarters qua ON pro.quarter_id = qua.id
-		WHERE qua.company_id = ?
-	`, company.ID, company.ID, company.ID, company.ID).Scan(&results).Error
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve KPI data"})
-			auditLog.WithFields(logrus.Fields{
-				"status":     "failure",
-				"key":        key,
+	case "operational":
+		var metrics []operationalMetric
+		if err := db.Raw(`
+        SELECT 
+            o.infrastructure_capacity,
+            o.operational_bottlenecks,
+            o.optimization_areas,
+            o.scaling_plans,
+            q.quarter,
+            q.year,
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM operational
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) o
+        JOIN quarters q ON o.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
 				"company_id": company.ID,
+				"key":        key,
 				"error":      err.Error(),
-			}).Error("Failed to retrieve KPI metrics")
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Operational query returned no data")
+			} else {
+				entry.Error("Failed to retrieve operational metrics")
+			}
 			return
 		}
 		auditLog.WithFields(logrus.Fields{
 			"status":     "success",
 			"company_id": company.ID,
 			"key":        key,
-			"rows":       len(results),
-		}).Info("KPI metrics retrieved")
+			"rows":       len(metrics),
+		}).Info("Operational metrics retrieved successfully")
 		ctx.JSON(http.StatusOK, gin.H{
 			"company_id": company.ID,
-			"kpis":       results,
+			"metrics":    metrics,
+		})
+	case "risk":
+		var metrics []riskMetric
+		if err := db.Raw(`
+        SELECT 
+            r.strategic_risks,
+            r.operational_risks,
+            r.financial_risks,
+            r.legal_risks,
+            r.regulatory_risks,
+            r.mitigation_plans,
+            q.quarter,
+            q.year,
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM risk
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) r
+        JOIN quarters q ON r.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
+				"company_id": company.ID,
+				"key":        key,
+				"error":      err.Error(),
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Risk query returned no data")
+			} else {
+				entry.Error("Failed to retrieve risk metrics")
+			}
+			return
+		}
+		auditLog.WithFields(logrus.Fields{
+			"status":     "success",
+			"company_id": company.ID,
+			"key":        key,
+			"rows":       len(metrics),
+		}).Info("Risk metrics retrieved successfully")
+		ctx.JSON(http.StatusOK, gin.H{
+			"company_id": company.ID,
+			"metrics":    metrics,
+		})
+	case "additional":
+		var metrics []additionalMetric
+		if err := db.Raw(`
+        SELECT 
+            a.customer_feedback,
+            a.market_trends,
+            a.regulatory_changes,
+            a.noteworthy_events,
+            q.quarter,
+            q.year,
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM additional
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) a
+        JOIN quarters q ON a.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
+				"company_id": company.ID,
+				"key":        key,
+				"error":      err.Error(),
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Additional query returned no data")
+			} else {
+				entry.Error("Failed to retrieve additional metrics")
+			}
+			return
+		}
+		auditLog.WithFields(logrus.Fields{
+			"status":     "success",
+			"company_id": company.ID,
+			"key":        key,
+			"rows":       len(metrics),
+		}).Info("Additional metrics retrieved successfully")
+		ctx.JSON(http.StatusOK, gin.H{
+			"company_id": company.ID,
+			"metrics":    metrics,
+		})
+	case "assessment":
+		var metrics []assessmentMetric
+		if err := db.Raw(`
+        SELECT 
+            a.assessment_text,
+            a.assessment_score,
+            q.quarter,
+            q.year,
+            q.date
+        FROM (
+            SELECT DISTINCT ON (quarter_id) *
+            FROM assessment
+            WHERE company_id = ?
+            ORDER BY quarter_id, version DESC
+        ) a
+        JOIN quarters q ON a.quarter_id = q.id
+        WHERE q.company_id = ?
+        ORDER BY q.year, q.quarter ASC
+    `, company.ID, company.ID).Scan(&metrics).Error; err != nil {
+			logLevel := logrus.ErrorLevel
+			reason := "db_error"
+			status := "failure"
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Record not found"})
+				reason = "record_not_found"
+				logLevel = logrus.WarnLevel
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server issue"})
+			}
+			entry := auditLog.WithFields(logrus.Fields{
+				"status":     status,
+				"reason":     reason,
+				"company_id": company.ID,
+				"key":        key,
+				"error":      err.Error(),
+			})
+			if logLevel == logrus.WarnLevel {
+				entry.Warn("Assessment query returned no data")
+			} else {
+				entry.Error("Failed to retrieve assessment metrics")
+			}
+			return
+		}
+		auditLog.WithFields(logrus.Fields{
+			"status":     "success",
+			"company_id": company.ID,
+			"key":        key,
+			"rows":       len(metrics),
+		}).Info("Assessment metrics retrieved successfully")
+		ctx.JSON(http.StatusOK, gin.H{
+			"company_id": company.ID,
+			"metrics":    metrics,
 		})
 	default:
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid key '%s'", key)})
