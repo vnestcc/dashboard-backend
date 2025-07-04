@@ -483,7 +483,7 @@ func GetCompanyByID(ctx *gin.Context) {
 // @Tags        company
 // @Produce     json
 // @Param       id   path   int    true  "Company ID"
-// @Param       key  query  string true  "Metric key" Enums(info, finance, market, uniteconomics, teamperf, fund, competitive, operation, risk, additional, self, attachements, product)
+// @Param       key  query  string true  "Metric key" Enums(finance, market, economics, teamperf, fund, operational, risk, additional, self, product)
 // @Success     200  {object} map[string]any          "Success (company_id and metrics array/object)"
 // @Failure     400  {object} map[string]string       "Bad request (missing or invalid params)"
 // @Failure     404  {object} map[string]string       "Not found"
@@ -935,13 +935,10 @@ func CompanyMetrics(ctx *gin.Context) {
 	case "risk":
 		var metrics []riskMetric
 		if err := db.Raw(`
-        SELECT 
-            r.strategic_risks,
-            r.operational_risks,
-            r.financial_risks,
-            r.legal_risks,
-            r.regulatory_risks,
-            r.mitigation_plans,
+        SELECT
+						r.compliance_status,
+						r.security_incidents,
+						r.regulatory_concerns,
             q.quarter,
             q.year,
             q.date
@@ -993,10 +990,9 @@ func CompanyMetrics(ctx *gin.Context) {
 		var metrics []additionalMetric
 		if err := db.Raw(`
         SELECT 
-            a.customer_feedback,
-            a.market_trends,
-            a.regulatory_changes,
-            a.noteworthy_events,
+            a.business_model_adjustments,
+            a.growth_challenges,
+            a.initiative_progress,
             q.quarter,
             q.year,
             q.date
@@ -1044,12 +1040,13 @@ func CompanyMetrics(ctx *gin.Context) {
 			"company_id": company.ID,
 			"metrics":    metrics,
 		})
-	case "assessment":
+	case "self":
 		var metrics []assessmentMetric
 		if err := db.Raw(`
         SELECT 
-            a.assessment_text,
-            a.assessment_score,
+            a.financial_rating,
+            a.market_rating,
+						a.overall_rating,
             q.quarter,
             q.year,
             q.date

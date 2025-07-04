@@ -134,30 +134,27 @@ type operationalMetric struct {
 }
 
 type riskMetric struct {
-	StrategicRisks   string `json:"strategic_risks"`
-	OperationalRisks string `json:"operational_risks"`
-	FinancialRisks   string `json:"financial_risks"`
-	LegalRisks       string `json:"legal_risks"`
-	RegulatoryRisks  string `json:"regulatory_risks"`
-	MitigationPlans  string `json:"mitigation_plans"`
-	Quarter          string `json:"quarter"`
-	Year             string `json:"year"`
-	Date             string `json:"date"`
+	ComplianceStatus   string `json:"compliance_status"`
+	SecurityIncidents  string `json:"security_incidents"`
+	RegulatoryConcerns string `json:"regulatory_concerns"`
+	Quarter            string `json:"quarter"`
+	Year               string `json:"year"`
+	Date               string `json:"date"`
 }
 
 type additionalMetric struct {
-	CustomerFeedback  string `json:"customer_feedback"`
-	MarketTrends      string `json:"market_trends"`
-	RegulatoryChanges string `json:"regulatory_changes"`
-	NoteworthyEvents  string `json:"noteworthy_events"`
-	Quarter           string `json:"quarter"`
-	Year              string `json:"year"`
-	Date              string `json:"date"`
+	InitiativeProgress       string `json:"initiative_progress"`
+	GrowthChallenges         string `json:"growth_challenges"`
+	BusinessModelAdjustments string `json:"business_model_adjustments"`
+	Quarter                  string `json:"quarter"`
+	Year                     string `json:"year"`
+	Date                     string `json:"date"`
 }
 
 type assessmentMetric struct {
-	AssessmentText  string `json:"assessment_text"`
-	AssessmentScore string `json:"assessment_score"`
+	FinancialRating uint8  `json:"finance_rating"`
+	MarketRating    uint8  `json:"market_rating"`
+	OverallRating   uint8  `json:"overall_rating"`
 	Quarter         string `json:"quarter"`
 	Year            string `json:"year"`
 	Date            string `json:"date"`

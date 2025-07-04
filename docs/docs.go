@@ -806,18 +806,15 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
-                            "info",
                             "finance",
                             "market",
-                            "uniteconomics",
+                            "economics",
                             "teamperf",
                             "fund",
-                            "competitive",
-                            "operation",
+                            "operational",
                             "risk",
                             "additional",
                             "self",
-                            "attachements",
                             "product"
                         ],
                         "type": "string",
