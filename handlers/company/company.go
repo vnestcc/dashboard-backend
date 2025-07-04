@@ -31,6 +31,11 @@ type createCompanyRequest struct {
 	Description  string `json:"description" binding:"required" example:"We do something xyz and make money"`
 }
 
+type nextQuarter struct {
+	NextQuarter string `json:"next_quarter" binding:"required" example:"Q1"`
+	NextYear    uint   `json:"next_year" binding:"required" example:"2025"`
+}
+
 type quarterResponse struct {
 	ID      uint   `json:"id" example:"1"`
 	Quarter string `json:"quarter" example:"Q1"`

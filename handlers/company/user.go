@@ -696,8 +696,6 @@ func EditCompany(ctx *gin.Context) {
 // @Tags         company
 // @Security     BearerAuth
 // @Accept       json
-// @Produce      json
-// @Param        body body      quarterRequest true "Quarter details"
 // @Success      201  {object}  map[string]string
 // @Failure      400  {object}  map[string]string
 // @Failure      401  {object}  map[string]string
@@ -727,19 +725,9 @@ func AddQuarter(ctx *gin.Context) {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "Admins cannot create quarters"})
 		return
 	}
-	var req quarterRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		auditLog.WithFields(logrus.Fields{
-			"status":  "failure",
-			"reason":  "invalid_input",
-			"details": err.Error(),
-		}).Warn("Invalid input")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-		return
-	}
 	var user models.User
-	if value, ok := handlers.UserCache.Get(claims.ID); ok {
-		user = value
+	if val, found := handlers.UserCache.Get(claims.ID); found {
+		user = val
 	} else {
 		if err := db.First(&user, claims.ID).Error; err != nil {
 			auditLog.WithFields(logrus.Fields{
@@ -761,10 +749,37 @@ func AddQuarter(ctx *gin.Context) {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "User does not belong to a company"})
 		return
 	}
+	companyID := *user.StartupID
+	var company models.Company
+	if val, found := StartupCache.Get(companyID); found {
+		company = val
+	} else {
+		if err := db.First(&company, companyID).Error; err != nil {
+			auditLog.WithFields(logrus.Fields{
+				"status":     "failure",
+				"reason":     "company_not_found",
+				"company_id": companyID,
+				"error":      err.Error(),
+			}).Error("Failed to load company")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load company"})
+			return
+		}
+		StartupCache.Set(companyID, company)
+	}
+	if company.PlannedQuarter == nil || company.PlannedYear == nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"user_id":    user.ID,
+			"company_id": company.ID,
+			"reason":     "no_planned_quarter",
+		}).Warn("No planned quarter/year set for company")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No planned quarter/year set for your company"})
+		return
+	}
 	newQuarter := models.Quarter{
-		CompanyID: *user.StartupID,
-		Quarter:   req.Quarter,
-		Year:      req.Year,
+		CompanyID: company.ID,
+		Quarter:   *company.PlannedQuarter,
+		Year:      *company.PlannedYear,
 		Date:      time.Now(),
 	}
 	if err := db.Create(&newQuarter).Error; err != nil {
@@ -772,9 +787,9 @@ func AddQuarter(ctx *gin.Context) {
 			auditLog.WithFields(logrus.Fields{
 				"status":     "failure",
 				"reason":     "duplicate_quarter",
-				"company_id": *user.StartupID,
-				"quarter":    req.Quarter,
-				"year":       req.Year,
+				"company_id": company.ID,
+				"quarter":    newQuarter.Quarter,
+				"year":       newQuarter.Year,
 			}).Warn("Quarter already exists for company")
 			ctx.JSON(http.StatusConflict, gin.H{"error": "Quarter already exists for this company and year"})
 			return
@@ -791,7 +806,7 @@ func AddQuarter(ctx *gin.Context) {
 		"status":     "success",
 		"quarter_id": newQuarter.ID,
 		"user_id":    user.ID,
-		"company_id": *user.StartupID,
+		"company_id": company.ID,
 	}).Info("Quarter created successfully")
 	ctx.JSON(http.StatusCreated, gin.H{
 		"message":    "Quarter created successfully",

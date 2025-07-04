@@ -364,3 +364,178 @@ func DeleteCompanyByID(ctx *gin.Context) {
 	}).Info("Company deleted successfully")
 	ctx.JSON(http.StatusOK, gin.H{"message": "Company deleted successfully"})
 }
+
+// AllowQuarterByID godoc
+// @Summary      Set next allowed quarter/year for a company
+// @Description  Allows a moderator to define the next quarter and year that a company is allowed to create. This updates the `planned_quarter` and `planned_year` fields for the company.
+// @Tags         admin
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int              true  "Company ID"
+// @Param        body body      nextQuarter       true  "Quarter and Year to allow"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /manage/company/quarters/{id}/new [post]
+func AllowQuarterByID(ctx *gin.Context) {
+	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "allow_quarter_by_id",
+	})
+	idStr := ctx.Param("id")
+	idUint, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "invalid_company_id",
+			"company_id": idStr,
+		}).Warn("Invalid company ID")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
+		return
+	}
+	companyID := uint(idUint)
+	var company models.Company
+	if val, found := StartupCache.Get(companyID); found {
+		company = val
+	} else {
+		if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				auditLog.WithFields(logrus.Fields{
+					"status": "failure",
+					"error":  "company_not_found",
+				}).Warn("Company not found")
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
+				return
+			} else {
+				auditLog.WithFields(logrus.Fields{
+					"status": "failure",
+					"error":  "internal_server_error",
+				}).Error("Error while retriving company")
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error while retriving company"})
+				return
+			}
+		}
+		StartupCache.Set(companyID, company)
+	}
+	var request nextQuarter
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "invalid_request_body",
+			"company_id": companyID,
+			"error":      err.Error(),
+		}).Warn("Failed to bind request JSON")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+	validQuarters := map[string]bool{"Q1": true, "Q2": true, "Q3": true, "Q4": true}
+	if !validQuarters[request.NextQuarter] {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid quarter. Must be one of Q1, Q2, Q3, Q4"})
+		return
+	}
+	if err := db.Model(&company).Updates(map[string]any{
+		"planned_quarter": &request.NextQuarter,
+		"planned_year":    &request.NextYear,
+	}).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "db_update_failed",
+			"company_id": companyID,
+			"error":      err.Error(),
+		}).Error("Failed to update company with planned quarter/year")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update company"})
+		return
+	}
+	StartupCache.Set(companyID, company)
+	auditLog.WithFields(logrus.Fields{
+		"status":          "success",
+		"company_id":      companyID,
+		"planned_quarter": request.NextQuarter,
+		"planned_year":    request.NextYear,
+	}).Info("Successfully updated company's next quarter and year")
+	ctx.JSON(http.StatusOK, gin.H{"message": "Company updated with next quarter/year"})
+}
+
+// RemoveQuarterByID godoc
+// @Summary      Remove planned quarter and year for a company
+// @Description  Allows a moderator to unset (nullify) the planned_quarter and planned_year fields for a company.
+// @Tags         admin
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      int  true  "Company ID"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /manage/company/quarters/{id}/remove [delete]
+func RemoveQuarterByID(ctx *gin.Context) {
+	db := values.GetDB()
+	auditLog := utils.Logger.WithFields(logrus.Fields{
+		"ip":    ctx.ClientIP(),
+		"type":  "audit",
+		"event": "allow_quarter_by_id",
+	})
+	idStr := ctx.Param("id")
+	idUint, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "invalid_company_id",
+			"company_id": idStr,
+		}).Warn("Invalid company ID")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid company ID"})
+		return
+	}
+	companyID := uint(idUint)
+	var company models.Company
+	if val, found := StartupCache.Get(companyID); found {
+		company = val
+	} else {
+		if err := db.Where("id = ?", companyID).First(&company).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				auditLog.WithFields(logrus.Fields{
+					"status": "failure",
+					"error":  "company_not_found",
+				}).Warn("Company not found")
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find company"})
+				return
+			} else {
+				auditLog.WithFields(logrus.Fields{
+					"status": "failure",
+					"error":  "internal_server_error",
+				}).Error("Error while retriving company")
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error while retriving company"})
+				return
+			}
+		}
+		StartupCache.Set(companyID, company)
+	}
+	if err := db.Model(&company).Updates(map[string]any{
+		"planned_quarter": nil,
+		"planned_year":    nil,
+	}).Error; err != nil {
+		auditLog.WithFields(logrus.Fields{
+			"status":     "failure",
+			"reason":     "db_update_failed",
+			"company_id": companyID,
+			"error":      err.Error(),
+		}).Error("Failed to update company with planned quarter/year")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update company"})
+		return
+	}
+	StartupCache.Set(companyID, company)
+	auditLog.WithFields(logrus.Fields{
+		"status":     "success",
+		"company_id": companyID,
+	}).Info("Successfully removed company's next quarter and year")
+	ctx.JSON(http.StatusOK, gin.H{"message": "Company updated with next quarter/year as nil"})
+
+}

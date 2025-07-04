@@ -18,6 +18,9 @@ type Company struct {
 	Description  string
 
 	Quarters []Quarter `gorm:"foreignKey:CompanyID"`
+
+	PlannedQuarter *string
+	PlannedYear    *uint
 }
 
 func (c *Company) BeforeCreate(tx *gorm.DB) (err error) {

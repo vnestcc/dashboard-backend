@@ -32,17 +32,17 @@ definitions:
     required:
     - secret_code
     type: object
-  company.quarterRequest:
+  company.nextQuarter:
     properties:
-      quarter:
+      next_quarter:
         example: Q1
         type: string
-      year:
-        example: 2024
+      next_year:
+        example: 2025
         type: integer
     required:
-    - quarter
-    - year
+    - next_quarter
+    - next_year
     type: object
   company.quarterResponse:
     properties:
@@ -917,15 +917,6 @@ paths:
       consumes:
       - application/json
       description: Adds a new quarter record for the user's company
-      parameters:
-      - description: Quarter details
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/company.quarterRequest'
-      produces:
-      - application/json
       responses:
         "201":
           description: Created
@@ -1184,6 +1175,123 @@ paths:
               type: string
             type: object
       summary: List all companies
+      tags:
+      - admin
+  /manage/company/quarters/{id}/new:
+    post:
+      consumes:
+      - application/json
+      description: Allows a moderator to define the next quarter and year that a company
+        is allowed to create. This updates the `planned_quarter` and `planned_year`
+        fields for the company.
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Quarter and Year to allow
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/company.nextQuarter'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set next allowed quarter/year for a company
+      tags:
+      - admin
+  /manage/company/quarters/{id}/remove:
+    delete:
+      description: Allows a moderator to unset (nullify) the planned_quarter and planned_year
+        fields for a company.
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove planned quarter and year for a company
       tags:
       - admin
   /manage/users:
