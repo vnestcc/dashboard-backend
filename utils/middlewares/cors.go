@@ -16,11 +16,11 @@ func CORS(cfg config.ServerConfig) gin.HandlerFunc {
 		origin := c.Request.Header.Get("Origin")
 		if origin != "" && (!cfg.Prod || isAllowedOrigin(origin, allowedOrigins) || allowedOrigins["*"] != struct{}{}) {
 			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Vary", "Origin") // Ensure response varies by Origin
+			c.Header("Vary", "Origin")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With")
 			c.Header("Access-Control-Allow-Credentials", "true")
-			c.Header("Access-Control-Max-Age", "14400") // 4 hours
+			c.Header("Access-Control-Max-Age", "14400")
 		}
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

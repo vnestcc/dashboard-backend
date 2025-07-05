@@ -20,6 +20,8 @@ func loadManage(r *gin.RouterGroup) {
 	manageRouter.POST("/company/perms/:id/editable")
 	manageRouter.POST("/company/quarters/:id/new", append(middleware.ModeratorMiddleware, company.AllowQuarterByID)...)
 	manageRouter.DELETE("/company/quarters/:id/remove", append(middleware.ModeratorMiddleware, company.RemoveQuarterByID)...)
+	manageRouter.POST("/company/quarters/new", append(middleware.ModeratorMiddleware, company.AllowQuarter)...)
+	manageRouter.DELETE("/company/quarters/remove", append(middleware.ModeratorMiddleware, company.RemoveQuarter)...)
 
 	manageRouter.GET("/vc/list", append(middleware.AdminMiddleware, handlers.GetVCList)...)
 	manageRouter.PUT("/vc/:id/approve", append(middleware.AdminMiddleware, handlers.ApproveVC)...)
