@@ -575,7 +575,7 @@ func AllowQuarter(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid quarter. Must be one of Q1, Q2, Q3, Q4"})
 		return
 	}
-	if err := db.Model(&models.Company{}).Updates(map[string]any{
+	if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(&models.Company{}).Updates(map[string]any{
 		"planned_quarter": &request.NextQuarter,
 		"planned_year":    &request.NextYear,
 	}).Error; err != nil {
@@ -614,7 +614,7 @@ func RemoveQuarter(ctx *gin.Context) {
 		"type":  "audit",
 		"event": "remove_quarter_all",
 	})
-	if err := db.Model(&models.Company{}).Updates(map[string]any{
+	if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(&models.Company{}).Updates(map[string]any{
 		"planned_quarter": nil,
 		"planned_year":    nil,
 	}).Error; err != nil {
